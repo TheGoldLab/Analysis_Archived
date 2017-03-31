@@ -1,5 +1,4 @@
-# Projects
-Project-specifc code for analysis, manuscripts, etc.
+# Papers
 
 This repository should be used to make publicly available all of 
 the code used for analyses and figures for presentations and 
