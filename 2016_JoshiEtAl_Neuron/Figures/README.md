@@ -1,1 +1,1 @@
-Start with plotLCD_script
+Start with figLCD_script
