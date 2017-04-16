@@ -4,9 +4,9 @@ DESCRIPTION
 
 1) "Analyses" : contains all the analyses files which load data and populate variables required for the figures
 
-2) "Figure_generation" contains all the files required to generate figures once the analyses files have been run.
+2) "Figures" contains all the files required to generate figures once the analyses files have been run.
 
-3) "Reduced Model" contains all the code for the reduced inference model which will generate simulated model behaviour. You typically don't need to run any file in this directory, and they will be called from the main analyses file if required.
+3) "ReducedModel" contains all the code for the reduced inference model which will generate simulated model behaviour. You typically don't need to run any file in this directory, and they will be called from the main analyses file if required.
 
 4) "Task" : contains all the files for the running the Auditory Task. Note this won't run without a Tobii eyetracker set up. So, get in touch with Kamesh if you intend to run this task. 
 
