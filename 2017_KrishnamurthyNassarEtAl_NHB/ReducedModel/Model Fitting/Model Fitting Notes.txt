@@ -1,0 +1,6 @@
+Fitting Model to Behaviour:
+
+We fit these parameters:
+-- Subjective noise for each noise condition
+-- Likelihood width for each subject 
+-- subjective hazard rate

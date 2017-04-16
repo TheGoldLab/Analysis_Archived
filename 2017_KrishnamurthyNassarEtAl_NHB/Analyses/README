@@ -1,0 +1,9 @@
+#############################
+DESCRIPTION
+#############################
+
+1) "AuditoryTask_Analysis_Aug2.m" is the main analysis file which will load the data and generate all the variables used in generating the figures. It is organised in a cell-wise fashion with each commented cell containing a separate analysis
+
+2) the other two files "ExtractPupilV9.m" and "extract_training_likeWidths.m" are used to extract data from the raw files and store them in a more convenient form. You typically won't need to run them and are provided for reference. 
+
+
