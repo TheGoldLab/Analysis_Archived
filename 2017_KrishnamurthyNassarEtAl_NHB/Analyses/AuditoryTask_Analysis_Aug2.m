@@ -5,6 +5,9 @@
 % The file includes analyses from both subject and model data.
 % Trial analyses and model fitting are done elsewhere; let's maintain this
 % file for generating the most current version of figures
+%
+% NOTE: CHANGE BASE DIRECTORY JUST BELOW TO ENSURE THAT THE SCRIPT
+%       CAN FIND THE APPROPRIATE FILES
 
 %% FILE PATHS
 
@@ -12,7 +15,7 @@ clear
 disp('Clearing Workspace!')
 clc
 
-%Base directory
+% Base directory
 base_dir = '~/Dropbox/auditoryTaskManuscript/forArchiving/';
 % make sure these are added to your path
 addpath(genpath(base_dir));
