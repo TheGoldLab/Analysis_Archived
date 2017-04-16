@@ -2,7 +2,7 @@
 DESCRIPTION
 #############################
 
-1) "Analyses" : contains all the analyses files which load data and populate variables required for the figures
+1) "Analyses" : contains all the analyses files which load data and populate variables required for the figures. To generate the figures,  To generate the figures, execute all of the commands in AuditoryTask_Analysis_Aug2.m, then execute the commands in each figure file.
 
 2) "Figures" contains all the files required to generate figures once the analyses files have been run.
 
