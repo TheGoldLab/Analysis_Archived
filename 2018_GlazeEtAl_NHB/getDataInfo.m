@@ -1,4 +1,4 @@
-function [fileList_, dataDir_, rawDataDir_, sessionsPerSubject_] = ...
+function [fileList_, analysisDataDir_, rawDataDir_, sessionsPerSubject_] = ...
    getDataInfo(recompute)
 % function fileList_ = getDataInfo(recompute)
 %
@@ -9,25 +9,27 @@ function [fileList_, dataDir_, rawDataDir_, sessionsPerSubject_] = ...
 %  dataDir_             ... directory name of parsed data
 %  rawDataDir_          ... directory name of raw data
 %  sessionsPerSubject_  ... number of sessions per subject
+%
 
-%% SET DATA DIRECTORIES HERE
-dataDir    = fullfile('data');
-rawDataDir = fullfile(dataDir, 'raw');
-filename   = 'dataInfo';
+%% SET DATA DIRECTORY HERE
+DATA_DIR          = fullfile('Data');
+ANALYSIS_DATA_DIR = fullfile(DATA_DIR, 'Analysis');
+RAW_DATA_DIR      = fullfile(DATA_DIR, 'Raw');
+FILENAME          = 'dataInfo';
 
 %% possibly just load pre-computed list
 if (nargin < 1 || ~recompute) && ...
-      exist(fullfile(dataDir, filename), 'file')
+      exist(fullfile(ANALYSIS_DATA_DIR, FILENAME), 'file')
    
    % load from file
-   load(fullfile(dataDir, filename), 'fileList_');
+   load(fullfile(ANALYSIS_DATA_DIR, FILENAME), 'fileList_');
    
 else
    
    %% OTHERWISE CHECK DATA FILES
    % get list in order they were used to generate model
    %  simulations
-   load(fullfile(dataDir, 'subj_info.mat'), 'subjids');
+   load(fullfile(ANALYSIS_DATA_DIR, 'subj_info.mat'), 'subjids');
    
    % Set up data arrays
    num_files          = size(subjids,1);
@@ -40,7 +42,7 @@ else
       
       % concatenate path and filename
       datafile = ['data_' subjids{ff} '.mat'];
-      fullname = fullfile(rawDataDir, datafile);
+      fullname = fullfile(RAW_DATA_DIR, datafile);
       
       % check for data file
       if exist(fullname, 'file')
@@ -48,7 +50,8 @@ else
          % load it
          load(fullname);
          
-         % check for good session
+         % check for good file: more than one session that started
+         %   with feedback (i.e., "signaled") trials
          sessionsPerSubject(ff) = session_ind - 1;
          if sessionsPerSubject(ff)>1 && mean(data1.signaled)>0
             fileList_{ff} = datafile;
@@ -59,14 +62,14 @@ else
    
    % save the selected list
    fileList_ = fileList_(Lgood);
-   save(fullfile(dataDir, filename), 'fileList_', 'Lgood', 'sessionsPerSubject');
+   save(fullfile(ANALYSIS_DATA_DIR, FILENAME), 'fileList_', 'Lgood', 'sessionsPerSubject');
 end
 
 if nargout > 1
-   dataDir_ = dataDir;
+   analysisDataDir_ = ANALYSIS_DATA_DIR;
    
    if nargout > 2
-      rawDataDir_ = rawDataDir;
+      rawDataDir_ = RAW_DATA_DIR;
       
       if nargout > 3
          sessionsPerSubject_ = sessionsPerSubject(Lgood);

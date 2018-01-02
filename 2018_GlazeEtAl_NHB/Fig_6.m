@@ -14,7 +14,7 @@ cols    = {1,1,1,2};
 set(axs,'Units','normalized');
 
 %% Get session numbers, sort order
-[~, data_dir, ~, sessions_per_subject] = getDataInfo;
+[~, analysis_data_dir, ~, sessions_per_subject] = getDataInfo;
 
 %% A: Compare goodness of fits per model per subject
 % celery columns are filename, struct, number of free parameters for each
@@ -31,7 +31,7 @@ num_subjects = length(sessions_per_subject);
 num_models   = size(pnames, 1);
 BICs         = nans(num_subjects, num_models);
 for mm = 1:num_models
-    load(fullfile(data_dir, pnames{mm,1}), pnames{mm,2});
+    load(fullfile(analysis_data_dir, pnames{mm,1}), pnames{mm,2});
     eval(['LLs = [' pnames{mm,2} '.LL]'';']);
     BICs(:,mm) = -2.*LLs+pnames{mm,3}.*log(sessions_per_subject.*2000);
 end
@@ -77,7 +77,7 @@ part20fits = [paramstrct_sigma_partMfixed.params]';
 %  2: adaptivity (mH)
 %  3: decision noise
 %  4: lapse
-load(fullfile(data_dir, 'adaptivityModelFits.mat'), 'fits');
+load(fullfile(analysis_data_dir, 'adaptivityModelFits.mat'), 'fits');
 
 % get correlations
 ainds  = [2 3]; % indices of adaptive parameters to test

@@ -3,23 +3,27 @@ function Fig_3(recompute)
 %
 % Figure-generating code for
 %  Glaze CM, Filipowicz ALS, Kable JW, Balasubramanian V, and Gold JI
-%  "A bias-variance trade-off governs individual differences in on-line 
+%  "A bias-variance trade-off governs individual differences in on-line
 %     learning in an unpredictable environment"
+
+%% Get adaptivity model fits.
+%  These are generated using:
+%  fitAdaptivityModel
 
 % possibly re-do the fits
 if nargin==1 && recompute
    fitAdaptivityModel;
 end
-   
-% Where to find the data
-[~,data_dir] = getDataInfo;
 
-% Load adaptivity model fits. Parameters are:
+% Where to find the data
+[~,analysis_data_dir] = getDataInfo;
+
+% Parameters are:
 %  1: logJ0 = log(Hdefault/(1?Hdefault)
 %  2: adaptivity (mH)
 %  3: decision noise
 %  4: lapse
-load(fullfile(data_dir, 'adaptivityModelFits.mat'), 'fits');
+load(fullfile(analysis_data_dir, 'adaptivityModelFits.mat'), 'fits');
 
 %% Set up figure
 wid     = 17.6; % total width
@@ -35,3 +39,6 @@ variability = fits(:,3);
 plot(adaptivity, variability, 'ko');
 [R,P] = corr(adaptivity, variability, 'type', 'Spearman')
 
+%% C-E: Probability of switch vs evidence
+%  just call utility function
+plotModelFreeAnalyses('data', [], axs(4:6));

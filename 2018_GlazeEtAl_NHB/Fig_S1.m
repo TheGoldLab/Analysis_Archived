@@ -18,7 +18,7 @@ cols    = {2};
 set(axs,'Units','normalized','FontSize', 12);
 
 %% Where to find the data
-[file_list, data_dir,raw_data_dir] = getDataInfo;
+[file_list, analysis_data_dir, raw_data_dir] = getDataInfo;
 
 %% Loop through the subjects to collect data for analysis
 num_subjects = length(file_list);
@@ -71,7 +71,7 @@ end
 %   2. H_slope
 %   3. noise in the DV
 %   4. lapse rate
-load(fullfile(data_dir, 'adaptivityModelFits.mat'), 'fits');
+load(fullfile(analysis_data_dir, 'adaptivityModelFits.mat'), 'fits');
 rfits = fits;
 nfits = size(fits,1);
 fdat  = nans(nfits,2,2);
