@@ -4,6 +4,6 @@ This repository is used to make publicly available all of the code used for anal
 
 Some may use utility functions found in TheGoldLab/Lab-Matlab-Utilities repository.
 
-Data is typically available upon request.
+Data are typically available upon request.
 
 Created 10/22/2017 by Joshua I. Gold
