@@ -9,12 +9,14 @@ Nature Human Behavior
 
 DEPENDENCIES
 ————————————
-1. Tested on Matlab 9.0.0.341360 (R2016a)
+1. Matlab code tested on Matlab 9.0.0.341360 (R2016a)
 2. Uses some Gold Lab Utilities available here: https://github.com/TheGoldLab/Lab-Matlab-Utilities
+3. One figure (Fig. 8) is in the form of a Python notebook
 
 CONTENTS
 ————————
 1. Fig_*.m … code to generate figures in the paper, numbered accordingly
+2. Fig_8.ipynb is a stand-alone Python notebook for the information-bottleneck analysis in Fig. 8
 2. getDataInfo.m … Utility function to point to where you put the data (see: “SET DATA DIRECTORY HERE”) 
 3. plotModelFreeAnalyses.m … utility used by some of the figure-generating functions
 4. Models/ … c/mex files to implement the models from the paper. See the README in that directory for more details.
