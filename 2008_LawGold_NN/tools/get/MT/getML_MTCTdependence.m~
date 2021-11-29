@@ -1,0 +1,371 @@
+function [fits, sems, p, fits_p, sems_p, p_p] = getML_MTCTdependence(Monk, recompute)
+savepath = ['/work/mirror_jeff/code/matlab/tmp-mat/getML_MTCTdependence_' Monk '.mat'];
+
+if recompute
+    a      = getML_txt([Monk 'TRain_MT.txt']);
+    fn     = a.data{strcmp(a.name,'dat_fn')};
+    ses    = a.data{strcmp(a.name,'session')};
+    usable = a.data{strcmp(a.name,'usable')};
+
+    bb     = -200;
+    be     = 1500;
+    bs     = 100;
+    bw     = 200;
+    bins   = [[bb:bs:be-bw]' [bb+bw:bs:be]'];
+    mbins  = bins(:,2)/1000;
+
+    [rM, rSD, rN, rMn] = getML_mRate([Monk 'TRain_MT.txt'], bins, [0 1], [], 0, 0);
+
+    % perform fit
+    fits = nans(4,length(fn));
+    sems = nans(4,length(fn));
+    p    = nans(length(fn),1);
+    
+    m    = rMn(1:7,:,:)-rMn(8:14,:,:);            % select between normalized and unnormalized spikes
+    sd   = rSD(1:7,:,:)+rSD(8:14,:,:);         % weight by # of trials because I don't have sd for normalized spike rate
+    coh  = [0 0.032 0.064 0.128 0.256 0.512 0.999]';
+    Lcoh = logical([1 1 1 1 1 1 1]);
+    
+    
+    for i = 1%:length(fn)
+        % preferred
+        if usable(i)==1
+            fprintf(sprintf('%d: %s\n', i, fn{i}))
+            warning off
+
+            L     = mbins>0.1; % assume neural delay is 150ms
+            mbP   = mbins(L);
+            mbP   = repmat(mbP',sum(Lcoh),1);
+            mbP   = mbP(:);
+            c     = repmat(coh(Lcoh),1,sum(L));
+            c     = c(:);
+            r     = m(Lcoh,L,i);
+            rd    = sd(Lcoh,L,i);
+            r     = r(:);
+            rd    = rd(:);
+
+            % perform multiple linear regression
+            Lgd   = ~isnan(c) & ~isnan(mbP) & ~isnan(r) & rd~=0 & ~isnan(rd) & rd~=inf;
+            if sum(Lgd)>5
+                % fit to full model
+                A     = [ones(size(c(Lgd))), c(Lgd), mbP(Lgd), c(Lgd).*mbP(Lgd)];
+                [b bi h pv] = nestedFW(r(Lgd),rd(Lgd),A, 1-0.68);
+                fits(:,i)   = b;
+                sems(:,i)   = b-bi(:,1);
+                p(i)        = pv;
+            end
+            
+            
+            % plot and check fit
+            if 0
+                clf
+                lc  = [];
+                for j = 1:7
+                    lc = [lc; [0.9 0.9 0.9]-(j-1)/7];
+                end
+
+                hold on
+                for j = 1:7
+                    plot(mbins, m(j,:,i), 'o', 'MarkerSize', 6, ...
+                        'MarkerFaceColor', lc(j,:), 'MarkerEdgeColor', 'none')
+                    mbP = mbins(L);
+                    t   = [mbP(1):((mbP(end)-mbP(1))/100):mbP(end)]';
+                    c   = repmat(coh(j),length(t),1);
+                    A   = [ones(length(t),1), c, t, c.*t];
+
+                    plot(t, A*fits(:,i), '-', 'LineWidth', 3, 'Color', lc(j,:))
+                    xlim([0.1 1]);
+                    ylim([-0.2 1.2]);
+                end
+                hold off
+                title(sprintf('%d: %.2f, %.2f, %.2f', ses(i), fits(2,i), fits(3,i), fits(4,i)))
+
+                pause
+            end
+        end
+    end
+    
+    a      = getML_txt([Monk 'PRe_MT.txt']);
+    fn     = a.data{strcmp(a.name,'dat_fn')};
+    usable = a.data{strcmp(a.name,'usable')};
+
+    bb     = -200;
+    be     = 1500;
+    bs     = 100;
+    bw     = 200;
+    bins   = [[bb:bs:be-bw]' [bb+bw:bs:be]'];
+    mbins  = bins(:,2)/1000;
+
+    [rM, rSD, rN, rMn] = getML_mRate([Monk 'PRe_MT.txt'], bins, [0 1], [], 0, 0);
+
+    % perform fit
+    fits_p = nans(4,length(fn));
+    sems_p = nans(4,length(fn));
+    p_p    = nans(length(fn),1);
+   
+    m    = rMn(1:7,:,:)-rMn(8:14,:,:);            % select between normalized and unnormalized spikes
+    sd   = rSD(1:7,:,:)+rSD(8:14,:,:);         % weight by # of trials because I don't have sd for normalized spike rate
+    coh  = [0 0.032 0.064 0.128 0.256 0.512 0.999]';
+    
+    
+    for i = 27:length(fn)
+        % preferred
+        if usable(i)==1
+            fprintf(sprintf('%d: %s\n', i, fn{i}))
+            warning off
+
+            if strcmp(Monk, 'Cy')
+                if i==17 | i==26
+                    L     = mbins>0.4;
+                elseif i==23
+                    L     = mbins>0.2;
+                else
+                    L     = mbins>0.1; % assume neural delay is 150ms
+                end
+            end
+            mbP   = mbins(L);
+            mbP   = repmat(mbP',sum(Lcoh),1);
+            mbP   = mbP(:);
+            c     = repmat(coh(Lcoh),1,sum(L));
+            c     = c(:);
+            r     = m(Lcoh,L,i);
+            rd    = sd(Lcoh,L,i);
+            r     = r(:);
+            rd    = rd(:);
+
+            % perform multiple linear regression
+            Lgd   = ~isnan(c) & ~isnan(mbP) & ~isnan(r) & rd~=0 & ~isnan(rd) & rd~=inf;
+               if sum(Lgd)>5
+                % fit to full model
+                A     = [ones(size(c(Lgd))), c(Lgd), mbP(Lgd), c(Lgd).*mbP(Lgd)];
+                [b bi h pv] = nestedFW(r(Lgd),rd(Lgd),A, 1-0.68);
+                fits_p(:,i)   = b;
+                sems_p(:,i)   = b-bi(:,1);
+                p_p(i)        = pv;
+            end
+
+            % plot and check fit
+            if 1
+                clf
+                lc  = [];
+                for j = 1:7
+                    lc = [lc; [0.9 0.9 0.9]-(j-1)/7];
+                end
+
+                hold on
+                for j = 1:7
+                    plot(mbins, m(j,:,i), 'o', 'MarkerSize', 6, ...
+                        'MarkerFaceColor', lc(j,:), 'MarkerEdgeColor', 'none')
+                    mbP = mbins(L);
+                    t   = [mbP(1):((mbP(end)-mbP(1))/100):mbP(end)]';
+                    c   = repmat(coh(j),length(t),1);
+                    A   = [ones(length(t),1), c, t, c.*t];
+
+                    plot(t, A*fits_p(:,i), '-', 'LineWidth', 3, 'Color', lc(j,:))
+                    xlim([0.1 1]);
+                  %  ylim([-0.2 1.5]);
+                end
+                hold off
+                title(sprintf('%.2f, %.2f, %.2f', fits_p(2,i), fits_p(3,i), fits_p(4,i)))
+
+                pause
+            end
+        end
+    end
+    save(savepath, 'fits', 'sems', 'p', 'fits_p', 'sems_p', 'p_p')
+
+
+else
+
+    load(savepath)
+end
+
+
+
+
+
+%% old code, fit to ROC areas. We don't do this anymore because ROC area
+%  saturate at 1, so it is wrong to fit a linear model to it.
+
+% function [fits, sems, p, fits_r, sems_r, p_r, fits_p, sems_p, p_p] = getML_MTCTdependence(Monk, recompute)
+% 
+% savepath = ['/work/mirror_jeff/code/matlab/tmp-mat/getML_MTCTdependence_' Monk '.mat'];
+% 
+% if recompute
+%     a      = getML_txt([Monk 'TRain_MT.txt']);
+%     fn     = a.data{strcmp(a.name,'dat_fn')};
+%     ses    = a.data{strcmp(a.name,'session')};
+%     usable = a.data{strcmp(a.name,'usable')};
+% 
+%     bb     = -200;
+%     be     = 1500;
+%     bs     = 50;
+%     bw     = 100;
+%     bins   = [zeros(size([bb+bw:bs:be]')) [bb+bw:bs:be]'];
+%     mbins  = bins(:,2)/1000;
+% 
+%     [rs rn re] = getML_ROCs([Monk 'TRain_MT.txt'], bins, [0 1], [0 1], 0, [], 0);
+% 
+%     % perform fit
+%     fits = nans(4,length(fn));
+%     sems = nans(4,length(fn));
+%     p    = nans(length(fn),1);
+%     fits_r = nans(3,length(fn));
+%     sems_r = nans(3,length(fn));
+%     p_r    = nans(length(fn),1);
+% 
+%     m    = rs;            % select between normalized and unnormalized spikes
+%     sd   = re./(rn.^0.5); % standard error
+%     coh  = [0 0.032 0.064 0.128 0.256 0.512 0.999]';
+%     Lcoh = logical([0 1 1 1 1 1 0]); % don't fit to 0 and 99.9% coh to avoid saturation effect in ROC area
+%                             % (ROC at 51 and 99% coh are usually 1)
+%     
+%     for i = 1:length(fn)
+%         % preferred
+%         if usable(i)==1
+%             fprintf(sprintf('%d: %s\n', i, fn{i}))
+%             warning off
+% 
+%             L     = mbins>0.15; % assume neural delay is 150ms
+%             mbP   = mbins(L);
+%             mbP   = repmat(mbP',sum(Lcoh),1);
+%             mbP   = mbP(:);
+%             c     = repmat(coh(Lcoh),1,sum(L));
+%             c     = c(:);
+%             r     = m(L,Lcoh,i)';
+%             rd    = sd(L,Lcoh,i)';
+%             r     = r(:);
+%             rd    = rd(:);
+% 
+%             % perform multiple linear regression
+%             Lgd   = ~isnan(c) & ~isnan(mbP) & ~isnan(r) & rd~=0;
+%             if sum(Lgd)>5
+%                 % fit to full model
+%                 A     = [ones(size(c(Lgd))), c(Lgd), mbP(Lgd), c(Lgd).*mbP(Lgd)];
+%                 [b bi h pv] = nestedFW(r(Lgd),ones(size(rd(Lgd))),A, 1-0.68);
+%                 fits(:,i)   = b;
+%                 sems(:,i)   = b-bi(:,1);
+%                 p(i)        = pv;
+%                 % fit to reduced model
+%                 A     = [ones(size(c(Lgd))), c(Lgd), mbP(Lgd)];
+%                 [b bi h pv] = nestedFW(r(Lgd),ones(size(rd(Lgd))),A, 1-0.68);
+%                 fits_r(:,i)   = b;
+%                 sems_r(:,i)   = b-bi(:,1);
+%                 p_r(i)        = pv;
+% 
+%             end
+% 
+%             % plot and check fit
+%             if 0
+%                 clf
+%                 lc  = [];
+%                 for j = 1:7
+%                     lc = [lc; [0.9 0.9 0.9]-(j-1)/7];
+%                 end
+% 
+%                 hold on
+%                 for j = 1:7
+%                     plot(mbins, m(:,j,i), 'o', 'MarkerSize', 6, ...
+%                         'MarkerFaceColor', lc(j,:), 'MarkerEdgeColor', 'none')
+%                     mbP = mbins(L);
+%                     t   = [mbP(1):((mbP(end)-mbP(1))/100):mbP(end)]';
+%                     c   = repmat(coh(j),length(t),1);
+%                     A   = [ones(length(t),1), c, t, c.*t];
+% 
+%                     plot(t, A*fits(:,i), '-', 'LineWidth', 3, 'Color', lc(j,:))
+%                     xlim([0.1 1]);
+%                     ylim([0.4 1.01]);
+%                 end
+%                 hold off
+%                 %                title(sprintf('%.2f (%.2f,%.2f)', a(1,i), ae(1,1,i), ae(1,2,i)))
+% 
+%                 pause
+%             end
+%         end
+%     end
+%     
+%     a      = getML_txt([Monk 'PRe_MT.txt']);
+%     fn     = a.data{strcmp(a.name,'dat_fn')};
+%     usable = a.data{strcmp(a.name,'usable')};
+% 
+%     bb     = -200;
+%     be     = 1500;
+%     bs     = 50;
+%     bw     = 100;
+%     bins   = [zeros(size([bb+bw:bs:be]')) [bb+bw:bs:be]'];
+%     mbins  = bins(:,2)/1000;
+% 
+%     [rs rn re] = getML_ROCs([Monk 'PRe_MT.txt'], bins, [0 1], [0 1], 0, [], 0);
+% 
+%     % perform fit
+%     fits_p = nans(4,length(fn));
+%     sems_p = nans(4,length(fn));
+%     p_p    = nans(length(fn),1);
+%    
+%     m    = rs;            % select between normalized and unnormalized spikes
+%     sd   = re./(rn.^0.5); % standard error
+%     coh  = [0 0.032 0.064 0.128 0.256 0.512 0.999]';
+% 
+%     for i = 1:length(fn)
+%         % preferred
+%         if usable(i)==1
+%             fprintf(sprintf('%d: %s\n', i, fn{i}))
+%             warning off
+% 
+%             L     = mbins>0.15; % assume neural delay is 150ms
+%             mbP   = mbins(L);
+%             mbP   = repmat(mbP',sum(Lcoh),1);
+%             mbP   = mbP(:);
+%             c     = repmat(coh(Lcoh),1,sum(L));
+%             c     = c(:);
+%             r     = m(L,Lcoh,i)';
+%             rd    = sd(L,Lcoh,i)';
+%             r     = r(:);
+%             rd    = rd(:);
+% 
+%             % perform multiple linear regression
+%             Lgd   = ~isnan(c) & ~isnan(mbP) & ~isnan(r) & rd~=0;
+%             if sum(Lgd)>5
+%                 % fit to full model
+%                 A     = [ones(size(c(Lgd))), c(Lgd), mbP(Lgd), c(Lgd).*mbP(Lgd)];
+%                 [b bi h pv] = nestedFW(r(Lgd),ones(size(rd(Lgd))),A, 1-0.68);
+%                 fits_p(:,i)   = b;
+%                 sems_p(:,i)   = b-bi(:,1);
+%                 p_p(i)        = pv;
+%             end
+% 
+%             % plot and check fit
+%             if 0
+%                 clf
+%                 lc  = [];
+%                 for j = 1:7
+%                     lc = [lc; [0.9 0.9 0.9]-(j-1)/7];
+%                 end
+% 
+%                 hold on
+%                 for j = 1:7
+%                     plot(mbins, m(:,j,i), 'o', 'MarkerSize', 6, ...
+%                         'MarkerFaceColor', lc(j,:), 'MarkerEdgeColor', 'none')
+%                     mbP = mbins(L);
+%                     t   = [mbP(1):((mbP(end)-mbP(1))/100):mbP(end)]';
+%                     c   = repmat(coh(j),length(t),1);
+%                     A   = [ones(length(t),1), c, t, c.*t];
+% 
+%                     plot(t, A*fits_p(:,i), '-', 'LineWidth', 3, 'Color', lc(j,:))
+%                     xlim([0.1 1]);
+%                     ylim([0.4 1.01]);
+%                 end
+%                 hold off
+%                 %                title(sprintf('%.2f (%.2f,%.2f)', a(1,i), ae(1,1,i), ae(1,2,i)))
+% 
+%                 pause
+%             end
+%         end
+%     end
+%     save(savepath, 'fits', 'sems', 'p', 'fits_r', 'sems_r', 'p_r', 'fits_p', 'sems_p', 'p_p')
+% 
+% 
+% else
+% 
+%     load(savepath)
+% end

@@ -1,0 +1,38 @@
+function err_ = ddOUn_err(fits, data, tau, fh)
+% function vals_ = ddOUn_err(fits, data, tau, fh)
+%
+% Return the negative sum of the log likelihood function, assuming gaussian
+% errors
+%
+%
+% INPUTS:
+%   FITS - [A, LAMBDA, TAU]
+%   DATA - DATA(:,1) ... coh [0 ... 1]
+%          DATA(:,2) ... time (sec)
+%          DATA(:,3) ... rate (mean)
+%          DATA(:,4) ... rate (s.e.) [optional]
+%
+
+if nargin<3
+    tau = 0.1;
+end
+
+if nargin<4
+    fh  = @ddOUn_val;
+end
+
+
+if size(data,2)<4
+    data = [data, nanmean(data(:,3))*ones(size(data,1),1)];
+end
+
+
+val  = feval(fh, fits, data, tau);
+p    = normpdf(val,data(:,3),data(:,4));
+
+
+if any(p<10e-20)
+    p(p<10e-20) = 10e-20;
+end
+err_ = -nansum(log(p));
+

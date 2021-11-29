@@ -1,0 +1,153 @@
+function [fits, sems] = getML_psyPerformanceGSDV(fn, recompute)
+% use  GSDV to get behavioral threshold
+
+if nargin < 1
+    return;
+elseif nargin < 2
+    recompute = 1;
+end
+
+savepath = ['/work/mirror_jeff/code/matlab/tmp-mat/getML_psyPerformanceGSDD_' fn(1:2) '.mat'];
+
+if recompute
+    a      = getML_txt(fn);
+    fname  = a.data{strcmp(a.name,'dat_fn')};
+    
+%     spec   = [0 0 0]; 
+%     fits   = nans(sum(spec)+1,length(fname));
+%     sems   = nans(sum(spec)+1,2,length(fname));
+    fits   = nans(1,length(fname));
+    sems   = nans(1,2,length(fname));
+
+    
+    % Cyrus's first session of training used only 1500ms trial, so it can't
+    % be used to fit the time dependent function (b/c viewing time is not a
+    % variable).
+    if ~isempty(findstr('Cy', fn))  
+        ses = 1:length(fname);
+    else
+        ses = 1:length(fname);
+    end
+
+    % get fits
+    global FIRA
+    for i = ses
+        fprintf('%d: %s\n', i, fname{i})
+        openFIRA(fname{i})
+
+        %% get data for fit
+        % data(1) = coh  (0 .. 1)
+        % data(2) = time (fractional seconds)
+        % data(3) = dot dir: left (-1) / right (1)
+        % data(4) = pct or correct (1) / error (0)
+        % data(5) = (optinal) n
+        d = [getFIRA_ecodesByName('dot_coh')./100 ...
+            (getFIRA_ecodesByName('dot_off')-getFIRA_ecodesByName('dot_on'))./1000 ...
+            sign(cos(pi/180.*getFIRA_ecodesByName('dot_dir'))) ...
+            getFIRA_ecodesByName('correct')];
+
+        % select trials
+        Lgood = d(:,4)>=0;
+        %Lgood = d(:,4)>=0 & d(:,2)<=1;
+        d     = d(Lgood,:);
+
+%         if i == 19 & findstr(fn, 'ZZ')
+%             init = 4;
+%         else
+%             init = [];
+%         end
+%         
+%             
+        % get fits
+        %citype = {100, 68, 81.61};
+        %[fits(:,i),sems(:,:,i)] = ctPsych_fit(@GSDV, d(:,1:2), d(:,4), [], citype, init, spec);
+        
+        
+        % new, fit to ddPow3FixLapse function
+        [pt nt ptci]     = getML_performanceAsso(fn, 0);
+        if findstr('ZZ', fn)    % set lapse as 0 for these sessions, otherwise fit is bad
+            pt([36 37 40 44]) = 1;
+        end
+        
+        citype = {100, 68, 81.61};
+        
+        if i==1
+            init = [0; 0.5];
+        else
+            init = fits(:,i-1);
+        end
+        [fits(:,i),sems(:,:,i)] = ctPsych_fit(@ddPow3FixLapse, d(:,1:2), d(:,4), [], citype, init, 0);
+     
+        
+        
+        sems(:,:,i)
+        fits(1,i)
+        th(i) = fits(1,i);
+
+    if 0
+            warning off
+            % plot and check fit
+            bb   = 0;
+            be   = 1500;
+            bw   = 200;
+            bs   = 50;
+            bins = [[bb:bs:be-bw]' [bb+bw:bs:be]'];
+            mbin = mean(bins,2)./1000;
+            coh  = [0 3.2 6.4 12.8 25.6 51.2 99.9]';
+
+            % get performance for each coh and time
+            p = nans(length(coh),size(bins,1));
+            N = nans(length(coh),size(bins,1));
+            for j = 1:size(bins,1)
+                Lt = FIRA.ecodes.data(:,getFIRA_ecodeColumnByName('dot_dur'))>=bins(j,1) ...
+                    & FIRA.ecodes.data(:,getFIRA_ecodeColumnByName('dot_dur'))<bins(j,2);
+                for k = 1:length(coh)
+                    Lcoh = FIRA.ecodes.data(:,getFIRA_ecodeColumnByName('dot_coh'))==coh(k);
+                    N(k,j) = nansum(FIRA.ecodes.data(Lcoh&Lt,getFIRA_ecodeColumnByName('correct'))>=0);
+                    p(k,j) = nansum(FIRA.ecodes.data(Lcoh&Lt,getFIRA_ecodeColumnByName('correct'))==1)/N(k,j);
+                end
+            end
+            
+            % prepare plot parameters
+            lc  = [];
+            for j = 1:7
+                lc = [lc; [0.9 0.9 0.9]-(j-1)/7];
+            end
+            
+            clf
+            hold on
+            for j = 1:7
+                plot(mbin, p(j,:)', 'o', 'MarkerSize', 8, 'MarkerFaceColor', lc(j,:), 'MarkerEdgeColor', 'none')
+                % get model prediction
+                m  = fits(1,i).*coh(j)/100.*mbin;
+                sd = (0.3.*(2*10.*mbin+m)).^0.5;
+                ym = 1-normcdf(0,m,sd);
+                plot(mbin, ym, 'LineWidth', 2, 'Color', lc(j,:));
+            end
+            xlim([0 1.5])
+            ylim([0.4 1])
+            title(sprintf('%.2f', fits(1,i)))
+            hold off
+            pause
+            warning on
+        end    
+        
+    end
+    
+    if findstr('Cy', fn)% cyrus's first session only have 1.5s trials, can't fit to time dependent function
+        fits(:,1)   = nan;
+        sems(:,:,1) = nan;
+    end
+
+    % save
+    save(savepath, 'fits', 'sems', 'th')
+else
+
+    % load
+    load(savepath)
+end
+
+
+
+
+

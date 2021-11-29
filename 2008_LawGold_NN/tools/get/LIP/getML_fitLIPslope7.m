@@ -1,0 +1,252 @@
+function [B, Bsem, ym] = getML_fitLIPslope7(x, coh, y, ys, B0, Bcon, ci_args)
+% Fit LIP responses to a piecewise-linear model. The model assumes that LIP responses (spike rate or roc areas) depends on
+% both coh and time, and is given by:
+%
+%
+%          / = 0.5                    , if T<t1
+%   R(C,T) - = 0.5 + (b1*C+b2)(T-t1)  , if T>=t1
+%          \ = Bound                  , if R(C,T)>=Bound
+%
+%
+%  INPUTS:
+%   x    - time in second       
+%   coh  - fraction coherence (0...1)
+%   y    - LIP responses
+%   ys   - se of LIP responses
+%   B0   - initial conditions
+%   Bcon - upper and lower bound for model parameters B
+%
+%
+%  OUTPUTS:
+%   B    - model parameters [b0; b1; b2; t1; t2]
+%   Bsem - standard error for B
+%   ym   - predicted values from model
+
+% check inputs
+if nargin < 3
+    error('getML_fitLIPslope7 needs at least three inputs')
+    return;
+elseif size(x)~=size(y)
+    error('x and y should have the same size')
+    return;
+end
+
+if nargin < 4 | isempty(ys)
+    % same as normal least sq fit this case
+    ys = ones(size(y));
+end
+
+if nargin < 6 | isempty(Bcon)
+    % set boundary conditions
+    Bcon = [-0.1 -0.2 0.1 0.5; 80 0.1 max(mbins(L)) 1];
+end
+
+if nargin < 5 | isempty(B0) | any(isnan(B0))
+    %%%  guess initial parameters  %%%    
+    % base line firing (B0)
+    L  = x==min(x);
+    bl = nanmean(y(L));
+    
+    % coh dependence (B1) and slope at 0% coh (B2)
+    c     = unique(coh);
+    slope = nans(1,length(c));
+    for i = 1:length(c)
+        L  = coh==c(i)&~isnan(y);
+        if sum(L)>=2
+            bb = regress(y(L), [ones(size(x(L))), x(L)]);
+            slope(i) = bb(2);
+        else
+            slope(i) = nan;
+        end
+    end
+    
+    L = ~isnan(slope);
+    a = [ones(sum(L),1), c(L)]\(slope(1,L)');
+    
+    % begin and end time for ramp-like response
+    L99 = coh==0.999;
+    L51 = coh==0.512;
+    ot  = [];
+    if sum(L99)~=0
+        Lgd = L99;
+        bl  = nanmean(y(Lgd&x<=200&x>=0));
+        bHi = sramp_fitW(x(Lgd), y(Lgd), ys(Lgd), bl, [],...
+            [min(x(Lgd)) 0 min(x(Lgd)); max(x(Lgd)) 100 max(x(Lgd))]);
+        ot  = [ot bHi(1)];
+    end
+    if sum(L51)~=0
+        Lgd = L51;
+        bl  = nanmean(y(Lgd&x<=200&x>=0));
+        bHi = sramp_fitW(x(Lgd), y(Lgd), ys(Lgd), bl, [],...
+            [min(x(Lgd)) 0 min(x(Lgd)); max(x(Lgd)) 100 max(x(Lgd))]);
+        ot  = [ot bHi(1)];
+    end
+    ot = nanmin(ot);
+    
+    % initial conditions
+    B0in = B0;
+    B0   = [a(2) 0 min(x) nanmax(y(L99|L51))];
+    if any(isnan(B0in))
+        B0(~isnan(B0in)) = B0in(~isnan(B0in));
+    end
+end
+
+if nargin<7
+    ci_args = [];
+end
+
+warning off
+[B, f, eflag, output, l, g, h] = ...
+        fmincon(@ctslope_err, B0, [], [], [], [],...
+                Bcon(1,:), Bcon(2,:), [],...
+                optimset('LargeScale', 'off', 'Display', 'off', 'Diagnostics', 'off'),...
+                {x coh y ones(size(ys))});
+
+[B0;B]
+% return ym
+m              = coh*B(1)+B(2);
+ym             = m.*(x-B(3))+0.5;
+if any(x<B(3))
+    ym(x<B(3)) = 0.5;
+end
+
+if any(ym>=B(4))
+    ym(ym>B(4)) = B(4);
+end
+
+% force b_(4) to be equal to the last value of ym
+ymax = ym(x==nanmax(x) & coh==nanmax(coh));
+if ymax>=0.5
+    B(4) = ymax;
+else
+    B(4) = 0.5;
+end
+
+
+%%    
+% the following computation assume that errors are gaussian        
+if nargout > 1
+
+    % confidence intervals
+    if nargin < 7 || ~iscell(ci_args)
+
+        % Compute Standard errors
+        %   The covariance matrix is the negative of the inverse of the
+        %   hessian of the natural logarithm of the probability of observing
+        %   the data set given the optimal parameters.
+        %   For now, use the numerically-estimated HESSIAN returned by fmincon
+        %   (which remember is computed from -log likelihood)
+        % -H because we used -logL in quick_err
+        Bsem = sqrt(diag(-((-h)^(-1))));
+
+    else
+
+        % citype is cell array with:
+        %   number of simulated data sets to create
+        %   confidence interval
+        if isempty(ci_args)
+            ci_args = {[], []};
+        end
+
+        % Check for input etype, which indicates that we will use
+        %    Monte Carlo resampling (parametric bootstrap).
+        %   See Wichmann & Hill (2001)
+        %       The psychometric function: II. Bootstrap-
+        %           based confidence intervals and sampling
+        % citype{1} is number of simulated data sets to use
+        if isempty(ci_args{1})
+            mcn = 100;
+        else
+            mcn = ci_args{1};
+        end
+        if mcn > 0
+            mcfits = zeros(mcn, length(B));
+            for ii = 1:mcn
+                if ~mod(ii,10)
+                    disp(sprintf('Bootstrap CIs, set %d', ii))
+                end
+                % compute fit on simulated data set
+                ysim = normrnd(ym,ys);
+                mcB  = fmincon(@ctslope_err, B0, [], [], [], [],...
+                            Bcon(1,:), Bcon(2,:), [],...
+                            optimset('LargeScale', 'off', 'Display', 'off', 'Diagnostics', 'off'),...
+                            {x coh ysim ys});
+   
+                % return ym
+                m              = coh*mcB(1)+mcB(2);
+                ymsim          = m.*(x-mcB(3))+0.5;
+                if any(x<mcB(3))
+                    ymsim(x<mcB(3)) = 0.5;
+                end
+
+                if any(ymsim>=mcB(4))
+                    ymsim(ymsim>mcB(4)) = mcB(4);
+                end
+
+                % force b_(4) to be equal to the last value of ymsim
+                ymax = ymsim(x==nanmax(x) & coh==nanmax(coh));
+                if ymax>=0.5
+                    mcB(4) = ymax;
+                else
+                    mcB(4) = 0.5;
+                end
+
+                mcfits(ii,:) = mcB;
+            end
+            % ci_args{2} is confidence interval
+            %   'sem' is 68
+            %   'iqr' is 50
+            %   90 is default
+            if length(ci_args) < 2 || isempty(ci_args{2})
+                CI = 90; % confidence interval
+            elseif ischar(ci_args{2})
+                switch ci_args{2}
+                    case 'sem'
+                        CI = 68;
+                    case 'iqr'
+                        CI = 50;
+                    otherwise
+                        CI = 90;
+                end
+            elseif isscalar(ci_args{2})
+                CI = ci_args{2};
+            end
+            %Bsem = [myprctile(mcfits,50-CI/2)' myprctile(mcfits,50+CI/2)'];
+            mcse = nanmean([B-myprctile(mcfits,50-CI/2); myprctile(mcfits,50+CI/2)-B]);
+            Bsem = [B'-mcse' B'+mcse'];
+        else
+            Bsem = [];
+        end
+    end
+end
+warning on
+
+return;
+
+
+function NLL = ctslope_err(b_, data_)
+    x_   = data_{1};
+    coh_ = data_{2};
+    y_   = data_{3};
+    ys_  = data_{4};
+    Lgd  = ~isnan(data_{1}) & ~isnan(data_{2}) & ~isnan(data_{3}) & ~isnan(data_{4});
+    
+    % parts for computing err and g
+    m              = coh_*b_(1)+b_(2);
+    ym             = m.*(x_-b_(3))+0.5;
+    if any(x_<b_(3))
+        ym(x_<b_(3))  = 0.5;
+    end
+    if any(ym>b_(4))
+        ym(ym>b_(4)) = b_(4);
+    end
+
+    p = normpdf(y_(Lgd),ym(Lgd),ys_(Lgd));
+    p(p<0.000001) = 0.000001;
+    
+    % return negative of log likelihood
+    NLL = -sum(log(p));
+return;
+
+
+

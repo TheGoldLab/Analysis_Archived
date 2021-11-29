@@ -1,0 +1,255 @@
+function [fits, sems, th] = getML_psyPerformanceCTFixLapse(fn, recompute, lapse)
+% use quickTsFixLapse to find behavioral threshold
+
+
+if nargin < 1
+    return;
+elseif nargin < 2
+    recompute = 1;
+end
+
+[home_dir, lab_dir, current_dir, tmat_dir] = dirnames;
+savepath = [tmat_dir '/getML_psyPerformanceCTFixLapse_' fn(1:2) '.mat'];
+
+
+if recompute
+    a      = getML_txt(fn);
+    fname  = a.data{strcmp(a.name,'dat_fn')};
+
+    fits   = nans(3,length(fname));
+    sems   = nans(3, 2, length(fname));
+    th     = nans(length(fname),1);     % threshold
+    
+    % get fits
+    global FIRA
+
+    for i = 1:length(fname)
+        fprintf('%d: %s\n', i, fname{i})
+        openFIRA(fname{i})
+
+        %% get data for fit
+        % data(1) = coh  (0 .. 1)
+        % data(2) = time (fractional seconds)
+        % data(3) = dot dir: left (-1) / right (1)
+        % data(4) = pct or correct (1) / error (0)
+        % data(5) = (optinal) n
+        d = [getFIRA_ecodesByName('dot_coh')./100 ...
+            (getFIRA_ecodesByName('dot_off')-getFIRA_ecodesByName('dot_on'))./1000 ...
+            sign(cos(pi/180.*getFIRA_ecodesByName('dot_dir'))) ...
+            getFIRA_ecodesByName('correct') ...
+            getFIRA_ecodesByName('choice')];
+
+        
+        % get fits
+        if ~isempty(findstr(fn, 'CyTRain_psy'))
+            if i==109
+                % ignore 99% for this session
+                LL      = d(:,1)>0.7;
+                d(LL,:) = [];
+                Lgood = d(:,4)>=0 & d(:,2)<=1.5;
+                d     = d(Lgood,:);
+            else
+                % select trials
+                Lgood = d(:,4)>=0 & d(:,2)<=1.5;
+                d     = d(Lgood,:);
+            end
+            
+        elseif ~isempty(findstr(fn, 'ZZTRain_psy'))
+            if i==5 % this is a really bad session, hard to fit
+                Lgood = d(:,4)>=0 & d(:,2)<=1;
+                d     = d(Lgood,:);
+                
+            elseif i==36 | i==40
+                Lgood = d(:,4)>=0 & d(:,2)<=1;
+                d     = d(Lgood,:);
+           
+            else
+                % select trials
+                Lgood = d(:,4)>=0 & d(:,2)<=1.5;
+                d     = d(Lgood,:);
+            end
+        end
+     
+        
+        if ~isempty(findstr(fn, 'asso'))
+            init = [];
+        end
+        
+        
+        if ~isempty(findstr(fn, 'CyTRain_psy'))
+            % some sessions doesn't fit very well, set initial conditions
+            % for those sessions
+            if i==1
+                init = [0.8; -1; 10];
+            
+            elseif i==5 
+                init = [0.8; -0.5; 1];
+                
+            elseif i==19
+                init = [0.5; 0; 10];
+            
+            elseif i==109
+                % this session doesn't fit well
+                init = [0.2; -5; 1; 0];
+                
+            else    % use fits from the previous session as init
+                init = [];
+            end
+            
+            
+        elseif ~isempty(findstr(fn, 'ZZTRain_psy'))
+            if     i==2
+                init = [0.9; 0; 20];
+            
+            elseif i==7 
+                init = [0.9; 0; 5];
+            
+            elseif i==5 % this is a really bad session, hard to fit
+                init = [0.8; 0; 10];
+                
+            elseif i==8
+                init = [0.8; 0; 20];
+            
+            elseif i==13
+                init = [0.99; -10; 0];
+            
+            elseif i==17
+                init = [0.8; 0; 5];
+               
+            elseif i==18
+                init = [0.99; 0; 0];
+                
+            elseif i==20
+                init = [0.99; 0; 0];
+            
+            elseif i==21
+                init = [0.99; 0; 20];
+               
+            elseif i==22
+                init = [0.99; -10; 20];
+            
+            elseif i==24
+                init = [0.99; -10; 20];
+                
+            elseif i==25
+                init = [0.99; 0; 20];
+           
+            elseif i==26
+                init = [0.99; -10; 20];
+           
+            elseif i==29
+                init = [0.70; -10; 20];
+               
+            elseif i==30
+                init = [0.99; 0; 1];
+           
+            elseif i==31
+                init = [0.99; -10; 2];
+           
+            elseif i==34
+                init = [0.7; 0; 20];
+           
+            elseif i==36
+                init = [0.99; 0; 10];
+            
+            elseif i==37
+                init = [0.99; -10; 10];
+           
+            elseif i==39
+                init = [0.99; 0; 1];
+           
+            elseif i==40
+                init = [0.99; 0; 20];
+           
+            elseif i==42
+                init = [0.99; 0; 10];
+            
+            elseif i==43
+                init = [0.99; 0; 10];
+            
+            else
+                init = [];
+            end
+            
+        end
+        citype = {10, 68, 81.61};
+        
+        if ~isempty(findstr(fn, 'psy'))
+            % for later sessions, use time dependent weibull function to
+            % estimate threshold
+            [fits(:,i), sems(:,:,i), stat] = ctPsych_fit(@quickTsFixLapse, d(:,1:2), d(:,4), [], citype, init, [1,0,0,0], lapse(i));
+            DFull                          = stat(2);
+            DAFull                         = stat(3);
+            
+           
+        elseif ~isempty(findstr(fn, 'asso'))
+            % for early sessions when monkeys were trained mostly on 99.9%,
+            % use time independent weibull function to estimate threshold
+            [fits(:,i), sems(:,:,i), stat] = ctPsych_fit(@quick3, d(:,1), d(:,4), [], citype, init);
+        end
+        th(i) = fits(1,i);
+        
+         if 0
+            warning off
+            % plot and check fit
+            bb   = 0;
+            be   = 1500;
+            bw   = 300;
+            bs   = 150;
+            bins = [[bb:bs:be-bw]' [bb+bw:bs:be]'];
+            mbin = mean(bins,2)./1000;
+            coh  = [0 3.2 6.4 12.8 25.6 51.2 99.9]';
+
+            % get performance for each coh and time
+            p = nans(length(coh),size(bins,1));
+            N = nans(length(coh),size(bins,1));
+            for j = 1:size(bins,1)
+                Lt = FIRA.ecodes.data(:,getFIRA_ecodeColumnByName('dot_dur'))>=bins(j,1) ...
+                    & FIRA.ecodes.data(:,getFIRA_ecodeColumnByName('dot_dur'))<bins(j,2);
+                for k = 1:length(coh)
+                    Lcoh = FIRA.ecodes.data(:,getFIRA_ecodeColumnByName('dot_coh'))==coh(k);
+                    N(k,j) = nansum(FIRA.ecodes.data(Lcoh&Lt,getFIRA_ecodeColumnByName('correct'))>=0);
+                    p(k,j) = nansum(FIRA.ecodes.data(Lcoh&Lt,getFIRA_ecodeColumnByName('correct'))==1)/N(k,j);
+                end
+            end
+            
+            % prepare plot parameters
+            lc  = [];
+            for j = 1:7
+                lc = [lc; [0.9 0.9 0.9]-(j-1)/7];
+            end
+
+            clf
+            hold on
+            for j = 1:7
+                plot(mbin, p(j,:)', 'o', 'MarkerSize', 8, 'MarkerFaceColor', lc(j,:), 'MarkerEdgeColor', 'none')
+                ym = 0.5 + (1 - 0.5 - lapse(i)).*(1-exp(-((coh(j)/100)./(fits(1,i).*mbin.^fits(2,i))).^fits(3,i)));
+                plot(mbin, ym, 'LineWidth', 2, 'Color', lc(j,:));
+            end
+            title(sprintf('%.2f, %.2f, %.2f', 100*fits(1,i), fits(2,i), fits(3,i)))
+            hold off
+            ylim([0.4 1.02])
+            xlim([0 1])
+            pause
+            warning on
+        end       
+    end
+
+    fits = real(fits);
+    sems = real(sems);
+    th   = real(th);
+    
+    clear FIRA
+        
+        
+    % save
+    save(savepath, 'fits', 'sems', 'th')
+else
+    % load
+    load(savepath)
+end
+
+
+
+
+

@@ -1,0 +1,182 @@
+function [pref, null, fano] = getML_SigNoise2(fname, crtf, nvf, dirf, recompute)
+% get signal strength to pref, signal strength to null, and fano factor for each good session
+% INPUTS:
+%   fname - 'txt' filename
+%   dtype - 'MT' or 'LIP'
+%   bins  - time bins for which signal strength and fano factor will be
+%           calculated ([begin time end time])
+%   crtf  - [0 1]=both correct and incorrect, 1=correct only, 0=incorrect only
+%   nvf   - [0 1]=both nv and not nv, 1=nv only, 0=not nv only
+%   dirf  - 0=sorted by dot/trg direction, 1=sorted by choice
+%
+% OUTPUTS:
+%   pref  - [intercept slope]
+%   null  - [intercept slope]
+%   fano  - [fano factor]
+%   
+
+
+if ~isempty(findstr(fname, 'LIP'))
+    dtype = 'LIP';
+
+elseif ~isempty(findstr(fname, 'MT'))
+    dtype = 'MT';
+    
+else
+    return;
+end
+
+[hdir, ldir, cdir, tdir] = dirnames;
+if findstr('PRe', fname)
+    savepath = [tdir '/getML_SigNoise2_' fname(1:5) '_' dtype '.mat'];
+else
+    savepath = [tdir '/getML_SigNoise2_' fname(1:2) '_' dtype '.mat'];
+end    
+    
+if recompute
+    a      = getML_txt(fname);
+    fn     = a.data{strcmp(a.name,'dat_fn')};
+    usable = a.data{strcmp(a.name,'usable')};
+    uid    = a.data{strcmp(a.name,'uid')};
+    d1     = a.data{strcmp(a.name,'ddir')};
+
+    rM     = nans(14, 1);
+    rN     = nans(14, 1);
+    rSD    = nans(14, 1);
+    
+    pref   = nans(2,length(fn));
+    null   = nans(2,length(fn));
+    fano   = nans(1,length(fn));
+    
+    
+    warning off
+    global FIRA
+    for i = 1:length(fn)
+        if usable(i) == 1;
+            openFIRA(fn{i})
+            fprintf('%s\n',fn{i})
+
+            
+            % get mean rate from dots_on to dots_off
+            % selection arrays for coherences
+            [Lcoh, Ucoh] = selectFIRA_trialsByUniqueID('dot_coh');
+            Lcoh = Lcoh(:, ismember(Ucoh, [0 3.2 6.4 12.8 25.6 51.2 99.9])); % remove strange coh other than the standard cohs
+            Ucoh = Ucoh(ismember(Ucoh, [0 3.2 6.4 12.8 25.6 51.2 99.9]));    % in one pre-training file there's a 9% coh condition
+
+            % selection arrays for direction
+            [Ldir, Udir] = selectFIRA_trialsByUniqueID('dot_dir');
+            Idir         = [find(round(Udir)==d1(i)) find(round(Udir)==mod(d1(i)+180,360))];
+            if dirf  % if neccessary, convert to by choice
+                for j = 1:size(Idir)
+                    L = ~isnan(FIRA.ecodes.data(:,getFIRA_ecodeColumnByName('correct')));
+                    Ldir(L,Idir(j)) = ~xor(Ldir(L,Idir(j)), FIRA.ecodes.data(L,getFIRA_ecodeColumnByName('correct')));
+                end
+            end
+
+            % selection arrays for task
+            [Ltk, Utk]  = selectFIRA_trialsByUniqueID('task');
+            Ltk = ismember(getFIRA_ecodesByName('task','id'), [3,6]);
+
+            % selection array for correct/incorrect
+            Lcrt =  ismember(getFIRA_ecodesByName('correct', 'id'), crtf);
+
+            % selection arry for viewing time
+            THRESH = 200;   % minimum viewing time
+            vt     = getFIRA_ecodeTimesByName('dot_off', 0)-getFIRA_ecodeTimesByName('dot_on', 0);
+            Ltime  = vt>=THRESH;
+            
+            % get selection array for mean rates
+            L = zeros(length(Ldir), 14);
+            c = [0 3.2 6.4 12.8 25.6 51.2 99.9];
+            for j = 1:7
+                if ismember(c(j),Ucoh)
+                    L(:,j)   = Ldir(:,Idir(1)) & Lcoh(:,Ucoh==c(j)) & Ltk & Lcrt & Ltime;
+                    L(:,j+7) = Ldir(:,Idir(2)) & Lcoh(:,Ucoh==c(j)) & Ltk & Lcrt & Ltime;
+                end
+            end
+
+            % get rate
+            for j = 1:14
+                r = getFIRA_rate(L(:,j), getFIRA_spikeByID(uid(i)), ... 
+                                    getFIRA_ecodeTimesByName('dot_on', 0), ...
+                                    getFIRA_ecodeTimesByName('dot_off', 0));
+                rM(j)  = nanmean(r);
+                rN(j)  = sum(~isnan(r));
+                rSD(j) = nanstd(r);
+            end
+           
+            
+            % get signal to pref (or response to coherence function)
+            m     = rM(1:7);
+            sd    = rSD(1:7)./(rN(1:7).^0.5);
+            coh   = [0 0.032 0.064 0.128 0.256 0.512 0.999]';
+
+            Lgd = ~isnan(m);
+            if sum(Lgd)>2
+                [b be]   = regressW(m(Lgd), sd(Lgd), [ones(size(coh(Lgd))) coh(Lgd)]);
+                pref(:,i) = b; 
+            end
+            
+            
+            % get signal to null (or response to coherence function)
+            m     = rM(8:14);
+            sd    = rSD(8:14)./(rN(8:14).^0.5);
+            coh   = [0 0.032 0.064 0.128 0.256 0.512 0.999]';
+
+            Lgd = ~isnan(m);
+            if sum(Lgd)>2
+                [b be]   = regressW(m(Lgd), sd(Lgd), [ones(size(coh(Lgd))) coh(Lgd)]);
+                null(:,i) = b; 
+            end
+            
+            
+            % get fano factor
+            if strcmp(fname, 'CyTRain_MT.txt')
+                Lgd = ~isnan(rM) & rSD.^2<220;  % remove those with really high variance (some has >1000, those probably results from conditions with only a few trials)
+            elseif strcmp(fname, 'CyPRe_MT.txt')
+                Lgd = ~isnan(rM) & rSD.^2<300;  % remove those with really high variance (some has >1000, those probably results from conditions with only a few trials)
+            elseif strcmp(fname, 'ZZPRe_MT.txt')
+                Lgd = ~isnan(rM) & rSD.^2<300;  % remove those with really high variance (some has >1000, those probably results from conditions with only a few trials)
+            elseif strcmp(fname, 'ZZTRain_MT.txt')
+                Lgd = ~isnan(rM) & rSD.^2<300;  % remove those with really high variance (some has >1000, those probably results from conditions with only a few trials)
+            end
+            
+            [b be] = regressW(rSD(Lgd).^2, 1./(rN(Lgd).^0.5), rM(Lgd));
+            fano(:,i) = b;
+            
+            
+            if 0 % plot and check fit
+                clf
+                i
+                subplot(1,2,1)
+                hold on
+                plot(coh,rM(1:7),'ok', 'MarkerFaceColor', 'k', 'MarkerSize', 2)
+                plot(coh,rM(8:14),'ok', 'MarkerFaceColor', 'none', 'MarkerEdgeColor', 'k', 'MarkerSize', 2)
+                hold off
+                %title(sprintf('signal: %.2f', sig(1,i)))
+                xlim([0 1])
+
+                subplot(1,2,2)
+                hold on
+                plot(rM,rSD.^2,'ok', 'MarkerFaceColor', 'k', 'MarkerSize', 2)
+                plot(rM, rM.*fano(1,i), '-r')
+                hold off
+                title(sprintf('fano: %.2f', fano(1,i)))
+                pause
+            end
+
+
+        end
+    end
+    warning on
+    
+    
+ 
+    save(savepath, 'pref', 'null', 'fano')
+else
+
+    load(savepath)
+end
+
+
+

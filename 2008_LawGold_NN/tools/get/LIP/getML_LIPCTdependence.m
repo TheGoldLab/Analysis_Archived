@@ -1,0 +1,690 @@
+function [fits, sems, p] = getML_LIPCTdependence(Monk, recompute)
+
+savepath = ['/work/mirror_jeff/code/matlab/tmp-mat/getML_LIPCTdependence_' Monk '.mat'];
+
+if recompute
+    a      = getML_txt([Monk 'TRain_LIP.txt']);
+    fn     = a.data{strcmp(a.name,'dat_fn')};
+    usable = a.data{strcmp(a.name,'usable')};
+    ses    = a.data{strcmp(a.name,'session')};
+    
+
+    % get ROC areas
+    crtf = [1];
+    nvf  = [0 1];
+    dirf = 0;
+
+    bb     = -200;
+    be     = 1500;
+    bs     = 25;
+    bw     = 50;
+    bins   = [[bb:bs:be-bw]' [bb+bw:bs:be]'];
+    mbins  = mean(bins,2)/1000;
+
+    [rM, rSD, rN, rMn] = getML_mRate([Monk 'TRain_LIP.txt'], bins, crtf, nvf, dirf, 0);
+
+    m    = rMn(1:7,:,:)-rMn(8:14,:,:);            % select between normalized and unnormalized spikes
+    sd   = (rSD(1:7,:,:)./sqrt(rN(1:7,:,:)))+(rSD(8:14,:,:)./sqrt(rN(8:14,:,:)));         % weight by # of trials because I don't have sd for normalized spike rate
+    %sd   = rSD(1:7,:,:)+rSD(8:14,:,:);         % weight by # of trials because I don't have sd for normalized spike rate
+    coh  = [0 0.032 0.064 0.128 0.256 0.512 0.999]';
+    Lcoh = logical([1 1 1 1 1 1 1]);
+    
+    fits = nans(4,length(fn));
+    sems = nans(4,length(fn));
+    p    = nans(1,length(fn));
+    
+    for i = 61:length(fn)
+        % preferred
+        if usable(i)==1
+            fprintf(sprintf('%d: %s\n', i, fn{i}))
+            warning off
+
+            a0 = [];
+
+            if strcmp(Monk, 'ZZ')
+                if      i==95    L = mbins>=0.15  & mbins<=0.35;
+                elseif  i==93    L = mbins>=0.55  & mbins<=0.9;
+                elseif  i==92    L = mbins>=0.35  & mbins<=0.75;
+                elseif  i==91    L = mbins>=0.35  & mbins<=0.6;
+                elseif  i==90    L = mbins>=0.4   & mbins<=0.55;
+                elseif  i==89    L = mbins>=0.5   & mbins<=0.8;
+                elseif  i==88    L = mbins>=0.4   & mbins<=0.6;
+                elseif  i==87    L = mbins>=0.4   & mbins<=0.625;
+                elseif  i==86    L = mbins>=0.25  & mbins<=0.4;
+                elseif  i==85    L = mbins>=0.3   & mbins<=0.45;
+                elseif  i==82    L = mbins>=0.3   & mbins<=0.5;
+                elseif  i==81    L = mbins>=0.25  & mbins<=0.375;
+                elseif  i==79    L = mbins>=0.6   & mbins<=0.75;
+                elseif  i==78    L = mbins>=0.2   & mbins<=0.8;
+                elseif  i==77    L = mbins>=0.4   & mbins<=0.6;
+                elseif  i==76    L = mbins>=0.55  & mbins<=0.9;
+                elseif  i==74    L = mbins>=0.2   & mbins<=0.45;
+                elseif  i==72    L = mbins>=0.35  & mbins<=0.55;
+                elseif  i==71    L = mbins>=0.3   & mbins<=0.8;
+                elseif  i==70    L = mbins>=0.35  & mbins<=0.8;
+                elseif  i==69    L = mbins>=0.15  & mbins<=0.7;
+                elseif  i==68    L = mbins>=0.5   & mbins<=0.7;
+                elseif  i==67    L = mbins>=0.35  & mbins<=0.65;
+                elseif  i==66    L = mbins>=0.2   & mbins<=0.7;
+                elseif  i==65    L = mbins>=0.45  & mbins<=0.65;
+                elseif  i==64    L = mbins>=0.4   & mbins<=1.5;
+                elseif  i==63    L = mbins>=0.6   & mbins<=0.95;
+                elseif  i==62    L = mbins>=0.375 & mbins<=0.55;
+                elseif  i==59    L = mbins>=0.1   & mbins<=0.35;
+                elseif  i==58    L = mbins>=0.5   & mbins<=0.8;
+                elseif  i==57    L = mbins>=0.675 & mbins<=0.9;
+                elseif  i==56    L = mbins>=0.5   & mbins<=0.675;
+                elseif  i==53    L = mbins>=0.2   & mbins<=0.6;
+                elseif  i==52    L = mbins>=0.7   & mbins<=1.1;
+                elseif  i==51    L = mbins>=0.2   & mbins<=0.8;
+                elseif  i==50    L = mbins>=0.4   & mbins<=0.6;
+                elseif  i==49    L = mbins>=0.7   & mbins<=1;
+                elseif  i==47    L = mbins>=0.35  & mbins<=0.7;
+                elseif  i==45    L = mbins>=0.6   & mbins<=1;
+                elseif  i==44    L = mbins>=0.3   & mbins<=0.5;
+                elseif  i==43    L = mbins>=0.7   & mbins<=1.2;
+                elseif  i==42    L = mbins>=0.3   & mbins<=0.8;
+                elseif  i==40    L = mbins>=0.4   & mbins<=0.95;
+                elseif  i==39    L = mbins>=0.45  & mbins<=1;
+                elseif  i==38    L = mbins>=0.4   & mbins<=0.9;
+                elseif  i==37    L = mbins>=0.4   & mbins<=1.2;
+                elseif  i==36    L = mbins>=0.5   & mbins<=1.2;
+                elseif  i==35    L = mbins>=0.4   & mbins<=1.2;
+                elseif  i==34    L = mbins>=0.7   & mbins<=1.3;
+                elseif  i==33    L = mbins>=0.1   & mbins<=1.15;
+                elseif  i==32    L = mbins>=0.1   & mbins<=1.2;
+                elseif  i==31    L = mbins>=0.1   & mbins<=1.3;
+                elseif  i==30    L = mbins>=0.2   & mbins<=0.7;
+                elseif  i==29    L = mbins>=0.5   & mbins<=1;
+                elseif  i==28    L = mbins>=0.2   & mbins<=1.2;
+                elseif  i==27    L = mbins>=0.4   & mbins<=0.9;
+                elseif  i==26    L = mbins>=0.3   & mbins<=0.7;
+                elseif  i==25    L = mbins>=0.2   & mbins<=1;
+                elseif  i==24    L = mbins>=0     & mbins<=1.3;
+                elseif  i==23    L = mbins>=0.3   & mbins<=1;
+                elseif  i==22    L = mbins>=0.5  & mbins<=1.5;
+                elseif  i==20    L = mbins>=0.3   & mbins<=1;
+                elseif  i==18    L = mbins>=0     & mbins<=0.7;
+                elseif  i==17    L = mbins>=0.2   & mbins<=0.8;
+                elseif  i==16    L = mbins>=0.75  & mbins<=1.5;
+                elseif  i==15    L = mbins>=0.2   & mbins<=1.1;
+                elseif  i==14    L = mbins>=0.2   & mbins<=1.3;
+                elseif  i==13    L = mbins>=0.5   & mbins<=1.4;
+                elseif  i==12    L = mbins>=0.1   & mbins<=1.5;
+                elseif  i==11    L = mbins>=0.2   & mbins<=1.5;
+                elseif  i==10    L = mbins>=0.1   & mbins<=1.5;
+                elseif  i==9     L = mbins>=0     & mbins<=1;
+                elseif  i==8     L = mbins>=0     & mbins<=1;
+                elseif  i==7     L = mbins>=0     & mbins<=1;
+                elseif  i==6     L = mbins>=0     & mbins<=1;
+                elseif  i==5     L = mbins>=0     & mbins<=1.5;
+                elseif  i==4     L = mbins>=0     & mbins<=1;
+                elseif  i==3     L = mbins>=0     & mbins<=0.8;
+                elseif  i==2     L = mbins>=0     & mbins<=1;    
+                elseif  i==1     L = mbins>=0     & mbins<=1.5;
+
+                else
+                    L = mbins>=0.4 & mbins<=0.6;  % Zsa Zsa's time
+                end
+            end
+
+            if strcmp(Monk, 'Cy')   % pick the best time period to fit data
+                if     i==149   L = mbins>=0.15   & mbins<=0.25;
+                elseif i==147   L = mbins>=0.15   & mbins<=0.225;
+                elseif i==146   L = mbins>=0.225  & mbins<=0.375;
+                elseif i==145   L = mbins>=0.2    & mbins<=0.4;
+                elseif i==143   L = mbins>=0.15   & mbins<=0.4;
+                elseif i==142   L = mbins>=0.125  & mbins<=0.325;
+                elseif i==141   L = mbins>=0.1    & mbins<=0.2;
+                elseif i==140   L = mbins>=0.15   & mbins<=0.35;
+                elseif i==139   L = mbins>=0.2    & mbins<=0.375;
+                elseif i==138   L = mbins>=0.125  & mbins<=0.225;
+                elseif i==137   L = mbins>=0.15   & mbins<=0.25;
+                elseif i==136   L = mbins>=0.15   & mbins<=0.3;
+                elseif i==135   L = mbins>=0.125  & mbins<=0.275;
+                elseif i==131   L = mbins>=0.25   & mbins<=0.45;
+                elseif i==130   L = mbins>=0.175  & mbins<=0.3;
+                elseif i==129   L = mbins>=0.2    & mbins<=0.4;
+                elseif i==128   L = mbins>=0.15   & mbins<=0.25;
+                elseif i==127   L = mbins>=0.15   & mbins<=0.275;
+                elseif i==126   L = mbins>=0.15   & mbins<=0.25;
+                elseif i==125   L = mbins>=0.15   & mbins<=0.375;
+                elseif i==124   L = mbins>=0.2    & mbins<=0.4;
+                elseif i==123   L = mbins>=0.3    & mbins<=0.7;
+                elseif i==122   L = mbins>=0.1    & mbins<=0.25;
+                elseif i==120   L = mbins>=0.125  & mbins<=0.45;
+                elseif i==119   L = mbins>=0.225  & mbins<=0.4;
+                elseif i==117   L = mbins>=0.1    & mbins<=0.8;
+                elseif i==116   L = mbins>=0.2    & mbins<=0.3;
+                elseif i==114   L = mbins>=0.1    & mbins<=0.25;
+                elseif i==113   L = mbins>=0.05   & mbins<=0.3;
+                elseif i==112   L = mbins>=0.1    & mbins<=0.325;
+                elseif i==111   L = mbins>=0.2    & mbins<=0.4;
+                elseif i==110   L = mbins>=0.15   & mbins<=0.3;
+                elseif i==109   L = mbins>=0.1    & mbins<=0.3;
+                elseif i==108   L = mbins>=0.75   & mbins<=1;
+                elseif i==107   L = mbins>=0.55   & mbins<=0.8;
+                elseif i==106   L = mbins>=0.15   & mbins<=0.35;
+                elseif i==104   L = mbins>=0      & mbins<=0.6;
+                elseif i==103   L = mbins>=0.2    & mbins<=0.4;
+                elseif i==102   L = mbins>=0.15   & mbins<=0.4;
+                elseif i==101   L = mbins>=0.2    & mbins<=0.4;
+                elseif i==100   L = mbins>=0.15   & mbins<=0.3;
+                elseif i==98    L = mbins>=0.15   & mbins<=0.25;
+                elseif i==97    L = mbins>=0.2    & mbins<=0.4;
+                elseif i==96    L = mbins>=0.15   & mbins<=0.3;
+                elseif i==95    L = mbins>=0.15   & mbins<=0.35;
+                elseif i==94    L = mbins>=0.15   & mbins<=0.3;
+                elseif i==93    L = mbins>=0.2    & mbins<=0.6;
+                elseif i==92    L = mbins>=0.15   & mbins<=0.4;
+                elseif i==91    L = mbins>=0.15   & mbins<=0.25;
+                elseif i==90    L = mbins>=0.2    & mbins<=0.7;
+                elseif i==89    L = mbins>=0.1    & mbins<=0.4;
+                elseif i==88    L = mbins>=0.125   & mbins<=0.35;
+                elseif i==87    L = mbins>=0.15   & mbins<=0.3;
+                elseif i==86    L = mbins>=0.15   & mbins<=0.25;
+                elseif i==85    L = mbins>=0.15   & mbins<=0.5;
+                elseif i==84    L = mbins>=0.1    & mbins<=0.25;
+                elseif i==83    L = mbins>=0.15   & mbins<=0.3;
+                elseif i==82    L = mbins>=0.2    & mbins<=0.3;
+                elseif i==81    L = mbins>=0.15   & mbins<=0.4;
+                elseif i==79    L = mbins>=0.125  & mbins<=0.35;
+                elseif i==78    L = mbins>=0.35   & mbins<=0.5;
+                elseif i==77    L = mbins>=0.2    & mbins<=0.6;
+                elseif i==76    L = mbins>=0.15   & mbins<=0.3;
+                elseif i==75    L = mbins>=0.15   & mbins<=0.25;
+                elseif i==74    L = mbins>=0.1    & mbins<=0.4;
+                elseif i==70    L = mbins>=0.1    & mbins<=0.4;
+                elseif i==69    L = mbins>=0.1    & mbins<=0.4;
+                elseif i==66    L = mbins>=0.15   & mbins<=0.35;
+                elseif i==65    L = mbins>=0.5    & mbins<=0.7;
+                elseif i==64    L = mbins>=0.15   & mbins<=0.35;
+                elseif i==61    L = mbins>=0.1    & mbins<=0.275;
+                elseif i==60    L = mbins>=0      & mbins<=1;
+                elseif i==59    L = mbins>=0.15   & mbins<=0.4;
+                elseif i==58    L = mbins>=0.15   & mbins<=0.35;
+                elseif i==57    L = mbins>=0      & mbins<=1;
+                elseif i==56    L = mbins>=0      & mbins<=0.7;
+                elseif i==55    L = mbins>=0.6    & mbins<=0.9;
+                elseif i==53    L = mbins>=0.3    & mbins<=0.7;
+                elseif i==52    L = mbins>=0.2    & mbins<=0.5;
+                elseif i==51    L = mbins>=0.5    & mbins<=1;
+                elseif i==49    L = mbins>=0      & mbins<=0.4;
+                elseif i==48    L = mbins>=0.1   & mbins<=0.4;
+                elseif i==47    L = mbins>=0.4    & mbins<=0.65;
+                elseif i==46    L = mbins>=0.1    & mbins<=1.5;
+                elseif i==45    L = mbins>=0.15   & mbins<=0.5;
+                elseif i==44    L = mbins>=0.3    & mbins<=0.45;
+                elseif i==43    L = mbins>=0      & mbins<=0.8;
+                elseif i==42    L = mbins>=0.1    & mbins<=0.7;
+                elseif i==41    L = mbins>=0.2    & mbins<=0.6;
+                elseif i==40    L = mbins>=0      & mbins<=0.5;
+                elseif i==38    L = mbins>=0.2    & mbins<=0.6;
+                elseif i==37    L = mbins>=0.4    & mbins<=1;
+                elseif i==35    L = mbins>=0.075  & mbins<=0.5;
+                elseif i==34    L = mbins>=0      & mbins<=1.4;
+                elseif i==33    L = mbins>=0.1    & mbins<=0.6;
+                elseif i==32    L = mbins>=0.6    & mbins<=1;
+                elseif i==31    L = mbins>=0.1    & mbins<=0.6;
+                elseif i==30    L = mbins>=0.3    & mbins<=0.6;
+                elseif i==28    L = mbins>=0.25   & mbins<=0.6;
+                elseif i==24    L = mbins>=0.15   & mbins<=0.4;
+                elseif i==23    L = mbins>=0      & mbins<=0.5;
+                elseif i==22    L = mbins>=0.1    & mbins<=0.4;
+                elseif i==21    L = mbins>=0.1    & mbins<=0.4;
+                elseif i==19    L = mbins>=0.2    & mbins<=0.5;
+                elseif i==18    L = mbins>=0.2    & mbins<=0.8;
+                elseif i==17    L = mbins>=0.4    & mbins<=1;
+                elseif i==16    L = mbins>=0.125  & mbins<=0.45;
+                elseif i==14    L = mbins>=0      & mbins<=0.5;
+                elseif i==13    L = mbins>=0.1    & mbins<=0.4;
+                elseif i==12    L = mbins>=0.2    & mbins<=0.6;
+                elseif i==8     L = mbins>=0.25   & mbins<=0.55;
+                elseif i==7     L = mbins>=0      & mbins<=0.8;
+                elseif i==6     L = mbins>=0.1    & mbins<=0.5;
+                elseif i==5     L = mbins>=0.3    & mbins<=0.8;
+                elseif i==4     L = mbins>=0      & mbins<=1.5;
+                elseif i==3     L = mbins>=0.0   & mbins<=0.7;
+                elseif i==2     L = mbins>=0.2    & mbins<=0.6;
+                elseif i==1     L = mbins>=0.3    & mbins<=0.625;
+
+                else
+                    L  = mbins>=0.075 & mbins<=0.35;  % cyrus's time
+                end
+            end
+            if isempty(a0)
+                a0 = nan;
+            end
+
+
+            % fit to the full model
+            coh   = [0 0.032 0.064 0.128 0.256 0.512 0.999]';
+            mbP   = mbins(L);
+            mbP   = repmat(mbP',sum(Lcoh),1);
+            mbP   = mbP(:);
+            c     = repmat(coh(Lcoh),1,sum(L));
+            c     = c(:);
+            r     = m(Lcoh,L,i);
+            rd    = sd(Lcoh,L,i);
+            r     = r(:);
+            rd    = rd(:);
+
+            % perform multiple linear regression
+            Lgd   = ~isnan(c) & ~isnan(mbP) & ~isnan(r) & rd~=0 & ~isnan(rd) & rd~=inf;
+            if sum(Lgd)>5
+                A     = [ones(size(c(Lgd))), c(Lgd), mbP(Lgd), c(Lgd).*mbP(Lgd)];
+                [b bi h pv] = nestedFW(r(Lgd), ones(size(rd(Lgd))), A, 0.68);
+                fits(:,i)   = b;
+                sems(:,i)   = b-bi(:,1);
+                p(i)        = pv;
+             end
+           
+              
+            if 0
+                clf
+                lc  = [];
+                for j = 1:7
+                    lc = [lc; [0.9 0.9 0.9]-(j-1)/7];
+                end
+
+                hold on
+                for j = find(Lcoh)
+                    plot(mbins, m(j,:,i), 'o', 'MarkerSize', 6, ...
+                        'MarkerFaceColor', lc(j,:), 'MarkerEdgeColor', 'none')
+                    mbP = mbins(L);
+                    t   = [mbP(1):((mbP(end)-mbP(1))/100):mbP(end)]';
+                    c   = repmat(coh(j),length(t),1);
+                    A   = [ones(length(t),1), c, t, c.*t];
+                    
+                    plot(t, A*fits(:,i), '-', 'LineWidth', 3, 'Color', lc(j,:))
+                    xlim([0.1 0.5]);
+                    ylim([-0.5 1.2]);
+                end
+                hold off
+                title(sprintf('%d (%d): %.2f, %.2f, %.2f', i, ses(i), fits(2,i), fits(3,i), fits(4,i)))
+            
+                % report fitted values
+                fprintf('%d: %.2f, %.2f, %.2f, %.2f', i, fits(1,i), fits(2,i), fits(3,i), fits(4,i))
+
+                pause
+            end
+            
+            
+        end
+    end
+
+    save(savepath, 'fits', 'sems', 'p')
+else
+
+    load(savepath)
+end
+
+
+
+
+
+%% old code, fit to ROC area
+% function [fits, sems, p, fits_r, sems_r, p_r] = getML_LIPCTdependence(Monk, recompute)
+% 
+% savepath = ['/work/mirror_jeff/code/matlab/tmp-mat/getML_LIPCTdependence_' Monk '.mat'];
+% 
+% if recompute
+%     a      = getML_txt([Monk 'TRain_LIP.txt']);
+%     fn     = a.data{strcmp(a.name,'dat_fn')};
+%     usable = a.data{strcmp(a.name,'usable')};
+% 
+%     % get ROC areas
+%     crtf = [1];
+%     nvf  = [0 1];
+%     dirf = 0;
+% 
+%     bb     = -200;
+%     be     = 1500;
+%     bs     = 50;
+%     bw     = 100;
+%     bins   = [[bb:bs:be-bw]' [bb+bw:bs:be]'];
+%     mbins  = mean(bins,2)/1000;
+% 
+%     [rs rn re] = getML_ROCs([Monk 'TRain_LIP.txt'], bins, crtf, nvf, dirf, [], 0);
+% 
+%     m    = rs;            % select between normalized and unnormalized spikes
+%     sd   = re./(rn.^0.5); % standard error
+%     coh  = [0 0.032 0.064 0.128 0.256 0.512 0.999]';
+%     
+%     if strcmp(Monk, 'Cy')
+%         Lcoh = logical([0 1 1 1 1 1 1]);
+%     else
+%         Lcoh = logical([0 0 0 1 1 1 1]);
+%     end    
+%     fits = nans(4,length(fn));
+%     sems = nans(4,length(fn));
+%     p    = nans(4,length(fn));
+%     
+%     fits_r = nans(3,length(fn));
+%     sems_r = nans(3,length(fn));
+%     p_r    = nans(3,length(fn));
+%     for i = 1:length(fn)
+%         % preferred
+%         if usable(i)==1
+%             fprintf(sprintf('%d: %s\n', i, fn{i}))
+%             warning off
+% 
+%             a0 = [];
+% 
+%             if strcmp(Monk, 'ZZ')
+%                 if      i==95    L = mbins>=0.4   & mbins<=0.5;
+%                 elseif  i==93    L = mbins>=0.5   & mbins<=0.9;
+%                 elseif  i==92    L = mbins>=0.4   & mbins<=0.75;
+%                 elseif  i==91    L = mbins>=0.35  & mbins<=0.6;
+%                 elseif  i==90    L = mbins>=0.45  & mbins<=0.6;
+%                 elseif  i==89    L = mbins>=0.5   & mbins<=0.8;
+%                 elseif  i==88    L = mbins>=0.4   & mbins<=0.6;
+%                 elseif  i==86    L = mbins>=0.25  & mbins<=0.4;
+%                 elseif  i==85    L = mbins>=0.3   & mbins<=0.45;
+%                 elseif  i==82    L = mbins>=0.5   & mbins<=0.8;
+%                 elseif  i==81    L = mbins>=0.5   & mbins<=0.9;
+%                 elseif  i==79    L = mbins>=0.6   & mbins<=0.75;
+%                 elseif  i==78    L = mbins>=0.2   & mbins<=0.8;
+%                 elseif  i==77    L = mbins>=0.4   & mbins<=0.6;
+%                 elseif  i==76    L = mbins>=0.55  & mbins<=0.9;
+%                 elseif  i==74    L = mbins>=0.55  & mbins<=0.7;
+%                 elseif  i==72    L = mbins>=0.35  & mbins<=0.55;
+%                 elseif  i==71    L = mbins>=0.5   & mbins<=0.9;
+%                 elseif  i==70    L = mbins>=0.9   & mbins<=1.2;
+%                 elseif  i==69    L = mbins>=0.1   & mbins<=0.8;
+%                 elseif  i==68    L = mbins>=0.5   & mbins<=0.7;
+%                 elseif  i==67    L = mbins>=0.35  & mbins<=0.65;
+%                 elseif  i==66    L = mbins>=0.45  & mbins<=0.7;
+%                 elseif  i==65    L = mbins>=0.45  & mbins<=0.65;
+%                 elseif  i==64    L = mbins>=0.4   & mbins<=1.5;
+%                 elseif  i==63    L = mbins>=0.4   & mbins<=1.1;
+%                 elseif  i==62    L = mbins>=0.4   & mbins<=1.1;
+%                 elseif  i==59    L = mbins>=0.7   & mbins<=0.9;
+%                 elseif  i==58    L = mbins>=0.5   & mbins<=0.8;
+%                 elseif  i==57    L = mbins>=0.5   & mbins<=0.7;
+%                 elseif  i==56    L = mbins>=0.3   & mbins<=0.65;
+%                 elseif  i==53    L = mbins>=0.2   & mbins<=0.6;
+%                 elseif  i==52    L = mbins>=0.7   & mbins<=1.1;
+%                 elseif  i==51    L = mbins>=0.1   & mbins<=0.8;
+%                 elseif  i==50    L = mbins>=0.8   & mbins<=1.1;
+%                 elseif  i==49    L = mbins>=0.2   & mbins<=0.5;
+%                 elseif  i==47    L = mbins>=0.35  & mbins<=0.7;
+%                 elseif  i==45    L = mbins>=0.6   & mbins<=1;
+%                 elseif  i==44    L = mbins>=0.1   & mbins<=0.5;
+%                 elseif  i==43    L = mbins>=0.7   & mbins<=1.2;
+%                 elseif  i==42    L = mbins>=0.4   & mbins<=0.8;
+%                 elseif  i==40    L = mbins>=0.4   & mbins<=0.95;
+%                 elseif  i==39    L = mbins>=0.45  & mbins<=1;
+%                 elseif  i==38    L = mbins>=0.4   & mbins<=0.9;
+%                 elseif  i==37    L = mbins>=0.4   & mbins<=1.2;
+%                 elseif  i==36    L = mbins>=0.5   & mbins<=1.2;
+%                 elseif  i==35    L = mbins>=0.4   & mbins<=1.2;
+%                 elseif  i==34    L = mbins>=0.7   & mbins<=1.3;
+%                 elseif  i==33    L = mbins>=0.1   & mbins<=1.15;
+%                 elseif  i==32    L = mbins>=0.1   & mbins<=1.2;
+%                 elseif  i==31    L = mbins>=0.1   & mbins<=1.3;
+%                 elseif  i==30    L = mbins>=0.2   & mbins<=0.7;
+%                 elseif  i==29    L = mbins>=0.2   & mbins<=1.5;
+%                 elseif  i==28    L = mbins>=0.7   & mbins<=1.2;
+%                 elseif  i==27    L = mbins>=0.4   & mbins<=0.9;
+%                 elseif  i==26    L = mbins>=0.3   & mbins<=1;
+%                 elseif  i==25    L = mbins>=0.2   & mbins<=1;
+%                 elseif  i==24    L = mbins>=0     & mbins<=1.3;
+%                 elseif  i==23    L = mbins>=0.3   & mbins<=1;
+%                 elseif  i==22    L = mbins>=0.5  & mbins<=1.5;
+%                 elseif  i==20    L = mbins>=0.3   & mbins<=1;
+%                 elseif  i==18    L = mbins>=0     & mbins<=0.7;
+%                 elseif  i==17    L = mbins>=0.2   & mbins<=0.8;
+%                 elseif  i==16    L = mbins>=0.75  & mbins<=1.5;
+%                 elseif  i==15    L = mbins>=0.2   & mbins<=1.1;
+%                 elseif  i==14    L = mbins>=0.2   & mbins<=1.3;
+%                 elseif  i==13    L = mbins>=0.5   & mbins<=1.4;
+%                 elseif  i==12    L = mbins>=0.1   & mbins<=1.5;
+%                 elseif  i==11    L = mbins>=0.2   & mbins<=1.5;
+%                 elseif  i==10    L = mbins>=0.1   & mbins<=1.5;
+%                 elseif  i==9     L = mbins>=0     & mbins<=1;
+%                 elseif  i==8     L = mbins>=0     & mbins<=1;
+%                 elseif  i==6     L = mbins>=0     & mbins<=1;
+%                 elseif  i==5     L = mbins>=0     & mbins<=1.5;
+%                 elseif  i==4     L = mbins>=0     & mbins<=1;
+%                 elseif  i==3     L = mbins>=0     & mbins<=1;
+%                 elseif  i==2     L = mbins>=0     & mbins<=1;    
+%                 elseif  i==1     L = mbins>=0     & mbins<=1.5;
+% 
+%                 else
+%                     L = mbins>=0.4 & mbins<=0.6;  % Zsa Zsa's time
+%                 end
+%             end
+% 
+%             if strcmp(Monk, 'Cy')   % pick the best time period to fit data
+%                 if     i==149   L = mbins>=0.1    & mbins<=0.2;
+%                 elseif i==147   L = mbins>=0.15   & mbins<=0.25;
+%                 elseif i==146   L = mbins>=0.2    & mbins<=0.35;
+%                 elseif i==145   L = mbins>=0.2    & mbins<=0.4;
+%                 elseif i==143   L = mbins>=0.2    & mbins<=0.4;
+%                 elseif i==142   L = mbins>=0.1    & mbins<=0.2;
+%                 elseif i==141   L = mbins>=0.1    & mbins<=0.2;
+%                 elseif i==140   L = mbins>=0.15   & mbins<=0.35;
+%                 elseif i==139   L = mbins>=0.15   & mbins<=0.3;
+%                 elseif i==138   L = mbins>=0.1    & mbins<=0.3;
+%                 elseif i==137   L = mbins>=0.15   & mbins<=0.35;
+%                 elseif i==136   L = mbins>=0.1    & mbins<=0.3;
+%                 elseif i==135   L = mbins>=0.1    & mbins<=0.25;
+%                 elseif i==131   L = mbins>=0.25   & mbins<=0.45;
+%                 elseif i==130   L = mbins>=0.15   & mbins<=0.35;
+%                 elseif i==129   L = mbins>=0.2    & mbins<=0.4;
+%                 elseif i==128   L = mbins>=0.15   & mbins<=0.3;
+%                 elseif i==127   L = mbins>=0.15   & mbins<=0.3;
+%                 elseif i==126   L = mbins>=0.2    & mbins<=0.3;
+%                 elseif i==125   L = mbins>=0.15   & mbins<=0.35;
+%                 elseif i==124   L = mbins>=0.15   & mbins<=0.35;
+%                 elseif i==123   L = mbins>=0.4    & mbins<=0.7;
+%                 elseif i==122   L = mbins>=0.1    & mbins<=0.25;
+%                 elseif i==120   L = mbins>=0.15   & mbins<=0.35;
+%                 elseif i==119   L = mbins>=0.2    & mbins<=0.6;
+%                 elseif i==117   L = mbins>=0.15   & mbins<=0.4;
+%                 elseif i==116   L = mbins>=0.15   & mbins<=0.3;
+%                 elseif i==114   L = mbins>=0.1    & mbins<=0.25;
+%                 elseif i==113   L = mbins>=0.05   & mbins<=0.3;
+%                 elseif i==112   L = mbins>=0.1    & mbins<=0.3;
+%                 elseif i==111   L = mbins>=0.2    & mbins<=0.4;
+%                 elseif i==110   L = mbins>=0.15   & mbins<=0.3;
+%                 elseif i==109   L = mbins>=0.1    & mbins<=0.3;
+%                 elseif i==108   L = mbins>=0.75   & mbins<=1;
+%                 elseif i==107   L = mbins>=0.55   & mbins<=0.8;
+%                 elseif i==106   L = mbins>=0.15   & mbins<=0.425;
+%                 elseif i==104   L = mbins>=0.2    & mbins<=0.3;
+%                 elseif i==103   L = mbins>=0.2    & mbins<=0.4;
+%                 elseif i==102   L = mbins>=0.1    & mbins<=0.3;
+%                 elseif i==101   L = mbins>=0.2    & mbins<=0.35;
+%                 elseif i==100   L = mbins>=0.15   & mbins<=0.25;
+%                 elseif i==98    L = mbins>=0.15   & mbins<=0.25;
+%                 elseif i==97    L = mbins>=0.2    & mbins<=0.4;
+%                 elseif i==96    L = mbins>=0.15   & mbins<=0.3;
+%                 elseif i==95    L = mbins>=0.15   & mbins<=0.35;
+%                 elseif i==94    L = mbins>=0.15   & mbins<=0.3;
+%                 elseif i==93    L = mbins>=0.2    & mbins<=0.35;
+%                 elseif i==92    L = mbins>=0.15   & mbins<=0.4;
+%                 elseif i==91    L = mbins>=0.15   & mbins<=0.25;
+%                 elseif i==90    L = mbins>=0.2    & mbins<=0.35;
+%                 elseif i==89    L = mbins>=0.15   & mbins<=0.4;
+%                 elseif i==88    L = mbins>=0.15   & mbins<=0.35;
+%                 elseif i==87    L = mbins>=0.15   & mbins<=0.25;
+%                 elseif i==86    L = mbins>=0.15   & mbins<=0.25;
+%                 elseif i==85    L = mbins>=0.15   & mbins<=0.25;
+%                 elseif i==84    L = mbins>=0.1    & mbins<=0.25;
+%                 elseif i==83    L = mbins>=0.15   & mbins<=0.25;
+%                 elseif i==82    L = mbins>=0.2    & mbins<=0.3;
+%                 elseif i==81    L = mbins>=0.15   & mbins<=0.3;
+%                 elseif i==79    L = mbins>=0.15   & mbins<=0.35;
+%                 elseif i==78    L = mbins>=0.35   & mbins<=0.5;
+%                 elseif i==77    L = mbins>=0.2    & mbins<=0.6;
+%                 elseif i==76    L = mbins>=0.15   & mbins<=0.3;
+%                 elseif i==75    L = mbins>=0.15   & mbins<=0.25;
+%                 elseif i==74    L = mbins>=0.1    & mbins<=0.4;
+%                 elseif i==70    L = mbins>=0.1    & mbins<=0.4;
+%                 elseif i==69    L = mbins>=0.1    & mbins<=0.4;
+%                 elseif i==66    L = mbins>=0.15   & mbins<=0.4;
+%                 elseif i==65    L = mbins>=0.5    & mbins<=0.7;
+%                 elseif i==64    L = mbins>=0.15   & mbins<=0.35;
+%                 elseif i==61    L = mbins>=0.1    & mbins<=0.3;
+%                 elseif i==60    L = mbins>=0      & mbins<=1;
+%                 elseif i==59    L = mbins>=0.15   & mbins<=0.3;
+%                 elseif i==58    L = mbins>=0.15   & mbins<=0.35;
+%                 elseif i==57    L = mbins>=0      & mbins<=1;
+%                 elseif i==56    L = mbins>=0      & mbins<=0.7;
+%                 elseif i==55    L = mbins>=0.6    & mbins<=0.9;
+%                 elseif i==53    L = mbins>=0.3    & mbins<=0.7;
+%                 elseif i==52    L = mbins>=0.2    & mbins<=0.5;
+%                 elseif i==51    L = mbins>=0.5    & mbins<=1;
+%                 elseif i==49    L = mbins>=0      & mbins<=0.4;
+%                 elseif i==48    L = mbins>=0.1   & mbins<=0.4;
+%                 elseif i==47    L = mbins>=0.4    & mbins<=0.65;
+%                 elseif i==46    L = mbins>=0.1    & mbins<=1.5;
+%                 elseif i==45    L = mbins>=0.15   & mbins<=0.5;
+%                 elseif i==44    L = mbins>=0.3    & mbins<=0.45;
+%                 elseif i==43    L = mbins>=0      & mbins<=0.8;
+%                 elseif i==42    L = mbins>=0.1    & mbins<=0.7;
+%                 elseif i==41    L = mbins>=0.2    & mbins<=0.6;
+%                 elseif i==40    L = mbins>=0      & mbins<=0.5;
+%                 elseif i==38    L = mbins>=0.2    & mbins<=0.6;
+%                 elseif i==37    L = mbins>=0.4    & mbins<=1;
+%                 elseif i==35    L = mbins>=0.1    & mbins<=0.5;
+%                 elseif i==34    L = mbins>=0.8    & mbins<=1.4;
+%                 elseif i==33    L = mbins>=0.2    & mbins<=0.4;
+%                 elseif i==32    L = mbins>=0.6    & mbins<=1;
+%                 elseif i==30    L = mbins>=0.3    & mbins<=0.6;
+%                 elseif i==28    L = mbins>=0.25   & mbins<=0.6;
+%                 elseif i==24    L = mbins>=0.15   & mbins<=0.4;
+%                 elseif i==23    L = mbins>=0      & mbins<=0.5;
+%                 elseif i==22    L = mbins>=0.1    & mbins<=0.4;
+%                 elseif i==21    L = mbins>=0.1    & mbins<=0.4;
+%                 elseif i==19    L = mbins>=0.2    & mbins<=0.5;
+%                 elseif i==18    L = mbins>=0.2    & mbins<=0.8;
+%                 elseif i==17    L = mbins>=0.4    & mbins<=1;
+%                 elseif i==16    L = mbins>=0      & mbins<=0.4;
+%                 elseif i==14    L = mbins>=0      & mbins<=0.5;
+%                 elseif i==13    L = mbins>=0.1    & mbins<=0.4;
+%                 elseif i==12    L = mbins>=0.2    & mbins<=0.45;
+%                 elseif i==8     L = mbins>=0.25   & mbins<=0.55;
+%                 elseif i==7     L = mbins>=0      & mbins<=0.8;
+%                 elseif i==6     L = mbins>=0.1    & mbins<=0.5;
+%                 elseif i==5     L = mbins>=0.3    & mbins<=0.8;
+%                 elseif i==4     L = mbins>=0      & mbins<=1.5;
+%                 elseif i==3     L = mbins>=0.35   & mbins<=0.7;
+%                 elseif i==2     L = mbins>=0.1    & mbins<=0.5;
+%                 elseif i==1     L = mbins>=0.25   & mbins<=0.7;
+% 
+%                 else
+%                     L  = mbins>=0.075 & mbins<=0.35;  % cyrus's time
+%                 end
+%             end
+%             if isempty(a0)
+%                 a0 = nan;
+%             end
+% 
+% 
+%             % fit to the full model
+%             coh   = [0 0.032 0.064 0.128 0.256 0.512 0.999]';
+%             mbP   = mbins(L);
+%             mbP   = repmat(mbP',sum(Lcoh),1);
+%             mbP   = mbP(:);
+%             c     = repmat(coh(Lcoh),1,sum(L));
+%             c     = c(:);
+%             r     = m(L,Lcoh,i)';
+%             rd    = sd(L,Lcoh,i)';
+%             r     = r(:);
+%             rd    = rd(:);
+% 
+%             % perform multiple linear regression
+%             Lgd   = ~isnan(c) & ~isnan(mbP) & ~isnan(r) & rd~=0;
+%             if sum(Lgd)>5
+%                 A     = [ones(size(c(Lgd))), c(Lgd), mbP(Lgd), c(Lgd).*mbP(Lgd)];
+%                 [b bi h pv] = nestedFW(r(Lgd), ones(size(rd(Lgd))), A, 0.68);
+%                 fits(:,i)   = b;
+%                 sems(:,i)   = b-bi(:,1);
+%                 
+%                 if nargout>2
+%                     p(1,i) = pv;
+%                     for j = 1:3
+%                         Ared        = A;
+%                         Ared(:,j+1) = [];  % delete the j+1th column
+%                         %[b bi h pv] = nestedFW(r(Lgd), mean(rd(Lgd))*ones(size(rd(Lgd))), A, 0.05, Ared);
+%                         [b bi h pv] = nestedFW(r(Lgd), mean(rd(Lgd))*ones(size(rd(Lgd))), A, 0.68, Ared);
+%                         p(j+1,i) = pv;
+%                     end
+%                 end
+%             end
+%            
+%             
+%             
+%             
+%             % fit to reduced model without the cross-interaction term
+%             coh   = [0 0.032 0.064 0.128 0.256 0.512 0.999]';
+%             mbP   = mbins(L);
+%             mbP   = repmat(mbP',sum(Lcoh),1);
+%             mbP   = mbP(:);
+%             c     = repmat(coh(Lcoh),1,sum(L));
+%             c     = c(:);
+%             r     = m(L,Lcoh,i)';
+%             rd    = sd(L,Lcoh,i)';
+%             r     = r(:);
+%             rd    = rd(:);
+% 
+%             % perform multiple linear regression
+%             Lgd   = ~isnan(c) & ~isnan(mbP) & ~isnan(r) & rd~=0;
+%             if sum(Lgd)>5
+%                 A     = [ones(size(c(Lgd))), c(Lgd), mbP(Lgd)];
+%                 [b bi h pv] = nestedFW(r(Lgd), ones(size(rd(Lgd))), A,0.68);
+%                 fits_r(:,i)   = b;
+%                 sems_r(:,i)   = b-bi(:,1);
+%                 
+%                 if nargout>2
+%                     p_r(1,i) = pv;
+%                     for j = 1:2
+%                         Ared        = A;
+%                         Ared(:,j+1) = [];  % delete the j+1th column
+%                         [b bi h pv] = nestedFW(r(Lgd), mean(rd(Lgd))*ones(size(rd(Lgd))), A, 0.68, Ared);
+%                         p_r(j+1,i) = pv;
+%                     end
+%                 end
+%             end
+%             
+%             if 0
+%                 clf
+%                 lc  = [];
+%                 for j = 1:7
+%                     lc = [lc; [0.9 0.9 0.9]-(j-1)/7];
+%                 end
+% 
+%                 hold on
+%                 for j = find(Lcoh)
+%                     plot(mbins, m(:,j,i), 'o', 'MarkerSize', 6, ...
+%                         'MarkerFaceColor', lc(j,:), 'MarkerEdgeColor', 'none')
+%                     mbP = mbins(L);
+%                     t   = [mbP(1):((mbP(end)-mbP(1))/100):mbP(end)]';
+%                     c   = repmat(coh(j),length(t),1);
+%                     A   = [ones(length(t),1), c, t, c.*t];
+%                     
+%                     plot(t, A*fits(:,i), '-', 'LineWidth', 3, 'Color', lc(j,:))
+%                     xlim([0 0.6]);
+%                     ylim([0.4 1]);
+%                 end
+%                 hold off
+%                 title(sprintf('%d: %.2f, %.2f, %.2f', i, fits(2,i), fits(3,i), fits(4,i)))
+%             
+%                 % report fitted values
+%                 fprintf('%d: %.2f, %.2f, %.2f, %.2f', i, fits(1,i), fits(2,i), fits(3,i), fits(4,i))
+% 
+%                 pause
+%             end
+%             
+%             
+%         end
+%     end
+% 
+%     save(savepath, 'fits', 'sems', 'p', 'fits_r', 'sems_r', 'p_r')
+% else
+% 
+%     load(savepath)
+% end

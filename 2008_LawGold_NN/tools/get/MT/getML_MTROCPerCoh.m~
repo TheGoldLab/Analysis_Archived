@@ -1,0 +1,29 @@
+function [pc, pce, b, bi, pv] = getML_MTROCPerCoh(Monk, recompute)
+% MT ROC area at each coh
+
+savepath = ['/work/mirror_jeff/code/matlab/tmp-mat/getML_MTROCPerCoh_' Monk '.mat'];
+
+
+if recompute
+    [r_cy rn_cy re_cy] = getML_ROCs([Monk 'TRain_MT.txt'], [], [], nvf, dirf, [], 0);
+
+    
+    % get performance improvement vs coh
+    ses = 1:length(fname);
+    for i = 1:7
+        Lgd = ~isnan(pc(:,i)) & ses'<100;
+        [b_, bi_, h, p] = nestedFW(pc(Lgd,i), ones(sum(Lgd),1), [ones(size(pc(Lgd,i))) ses(Lgd)']);
+        b(i)  = b_(2);
+        bi(i) = b_(2)-bi_(2,1);
+        pv(i) = p;
+    end
+
+
+    save(savepath, 'pc', 'pce', 'b', 'bi', 'pv')
+
+else
+    load(savepath)
+end
+
+
+
